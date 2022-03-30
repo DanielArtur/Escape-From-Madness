@@ -14,13 +14,25 @@ public class PlayerMovementv3 : MonoBehaviour
         OnWalls, //running on the walls
         LedgeGrab, //pulling up a ledge
     }
+    ////////////////////////////////////////////////////////////////Input////////////////////////////////////////////////////////////////////
+    // For Update()
+    float XMoveInUpdate;
+    float YMoveInUpdate;
+    // For FixedUpdate()
+    float horInputInFixed;
+    float verInputInFixed;
+
+    ////////////////////////////////////////////////////////////////FixedTimer////////////////////////////////////////////////////////////////////
+    float DeltaForUpdate;
+    float DeltaForFixed;
+
     ////////////////////////////////////////////////////////////////Refrences////////////////////////////////////////////////////////////////////
     [Header("References")]
     [SerializeField] private PlayerCollisionv2 playerCollision;
     [SerializeField] private Rigidbody Rigid;
-   // [SerializeField] private Animator Anim;
+    // [SerializeField] private Animator Anim;
     [SerializeField] private Transform faceOrientation;
-    public Camera Cam; //what will function as our players head to tilt up and down (this is a pivot point in our model that the cameras are children of
+    public Camera Cam; //what will function as our players head to tilt up and down (this is a pivot point_floor in our model that the cameras are children of
     [Tooltip("Walls that can be detected by rightWallCheck and leftWallCheck rays")]
     public LayerMask wallLayers; // Walls that can be detected by rightWallCheck and leftWallCheck rays
     ////////////////////////////////////////////////////////////////Physics////////////////////////////////////////////////////////////////////
@@ -60,7 +72,7 @@ public class PlayerMovementv3 : MonoBehaviour
     [SerializeField] private float camTilt;
     [SerializeField] private float camTiltTime;
 
-   
+
 
     [Header("StickyMovement")]
     // Sticky Movement:
@@ -154,12 +166,12 @@ public class PlayerMovementv3 : MonoBehaviour
     ////////////////////////////////////////////////////////////////Update////////////////////////////////////////////////////////////////////
     void Update()
     {
-        float Del = Time.deltaTime;
+        DeltaForUpdate = Time.deltaTime;
 
-        float XMove = Input.GetAxis("Horizontal");
-        float YMove = Input.GetAxis("Vertical");
+        XMoveInUpdate = Input.GetAxis("Horizontal");
+        YMoveInUpdate = Input.GetAxis("Vertical");
 
-        HandleFov(Del);
+        HandleFov(DeltaForUpdate);
 
 
         if (leftWallCheck)
@@ -178,7 +190,7 @@ public class PlayerMovementv3 : MonoBehaviour
             tilt = Mathf.Lerp(tilt, 0, camTiltTime * Time.deltaTime);
         }
 
-        
+
         if (sliding && !CheckSliding())
         {
 
@@ -238,7 +250,7 @@ public class PlayerMovementv3 : MonoBehaviour
             }
 
             //Check if there is a wall to run on
-            bool Wall = CheckWalls(XMove, YMove);
+            bool Wall = CheckWalls(XMoveInUpdate, YMoveInUpdate);
 
             //we are on the wall
             if (Wall)
@@ -277,7 +289,7 @@ public class PlayerMovementv3 : MonoBehaviour
             }
 
             //Check if there is a wall to run on
-            bool Wall = CheckWalls(XMove, YMove);
+            bool Wall = CheckWalls(XMoveInUpdate, YMoveInUpdate);
 
             //we are no longer on the wall, fall off it
             if (!Wall)
@@ -303,7 +315,7 @@ public class PlayerMovementv3 : MonoBehaviour
             //clamp our rigid velocity to nothing
             Rigid.velocity = Vector3.zero;
             //tick ledge grab time 
-            ActPullTm += Del;
+            ActPullTm += DeltaForUpdate;
 
             //pull up the ledge
             float PullUpLerp = ActPullTm / PullUpTime;
@@ -359,14 +371,14 @@ public class PlayerMovementv3 : MonoBehaviour
     ////////////////////////////////////////////////////////////////FixedUpdate////////////////////////////////////////////////////////////////////
     private void FixedUpdate()
     {
-        float Del = Time.deltaTime;
+        DeltaForFixed = Time.deltaTime;
 
         //get inputs
-        float horInput = Input.GetAxis("Horizontal");
-        float verInput = Input.GetAxis("Vertical");
+        horInputInFixed = Input.GetAxis("Horizontal");
+        verInputInFixed = Input.GetAxis("Vertical");
 
         //handle our fov
-        // HandleFov(Del);
+        // HandleFov(DeltaForUpdate);
 
 
 
@@ -375,21 +387,21 @@ public class PlayerMovementv3 : MonoBehaviour
         {
             //tick our ground timer
             if (OnGroundTimer < 10)
-                OnGroundTimer += Del;
+                OnGroundTimer += DeltaForFixed;
 
 
             //get magnituded of our inputs
-            float InputMagnitude = new Vector2(horInput, verInput).normalized.magnitude;
+            float InputMagnitude = new Vector2(horInputInFixed, verInputInFixed).normalized.magnitude;
             //get the amount of speed, based on if we press forwards or backwards
-            targetSpd = Mathf.Lerp(BackwardsSpeed, currentMaxSpeed, verInput); //using the vertical input as a lerp from if forward is being pressed
+            targetSpd = Mathf.Lerp(BackwardsSpeed, currentMaxSpeed, verInputInFixed); //using the vertical input as a lerp from if forward is being pressed
             //if we are crouching our target speed is our crouch speed
             if (Crouch)
                 targetSpd = CrouchSpeed;
 
-            LerpSpeed(InputMagnitude, Del, targetSpd);
+            LerpSpeed(InputMagnitude, DeltaForFixed, targetSpd);
 
-            MovePlayer(horInput, verInput, Del);
-            //    TurnPlayer(CamX, Del, TurnSpeed);
+            MovePlayer(horInputInFixed, verInputInFixed, DeltaForFixed);
+            //    TurnPlayer(CamX, DeltaForUpdate, TurnSpeed);
 
             //check for crouching 
             if (Input.GetButton("Crouching"))
@@ -415,7 +427,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
             //add to our player adjustment
             if (AdjustmentAmt < 1)
-                AdjustmentAmt += Del * SlideControl;
+                AdjustmentAmt += DeltaForFixed * SlideControl;
             else
                 AdjustmentAmt = 1;
 
@@ -426,7 +438,7 @@ public class PlayerMovementv3 : MonoBehaviour
             if (!Grounded)
             {
                 if (InAirTimer < 0.2f)
-                    InAirTimer += Del;
+                    InAirTimer += DeltaForFixed;
                 else
                 {
                     SetInAir();
@@ -444,12 +456,12 @@ public class PlayerMovementv3 : MonoBehaviour
         {
             //tick our Air timer
             if (InAirTimer < 10)
-                InAirTimer += Del;
+                InAirTimer += DeltaForFixed;
 
-            MoveInAir(horInput, verInput, Del);
+            MoveInAir(horInputInFixed, verInputInFixed, DeltaForFixed);
 
             //turn our player with the in air modifier
-            //  TurnPlayer(CamX, Del, TurnSpeedInAir);
+            //  TurnPlayer(CamX, DeltaForUpdate, TurnSpeedInAir);
         }
         //*********************************************OnWalls_Fixed*************************************************//
         else if (CurrentState == PlayerStates.OnWalls)
@@ -457,13 +469,13 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
             //tick our wall run timer
-            ActWallRunTime += Del;
+            ActWallRunTime += DeltaForFixed;
 
             //turn our player with the in air modifier
-            //  TurnPlayer(CamX, Del, TurnSpeedOnWalls);
+            //  TurnPlayer(CamX, DeltaForUpdate, TurnSpeedOnWalls);
 
             //move our player when on a wall
-            WallMove(verInput, Del);
+            WallMove(verInputInFixed, DeltaForFixed);
 
             //**************************************************************WALLJUMP*************************************************************/
             if (Input.GetButton("Jump") && ActWallRunTime > 0.1f)
@@ -586,7 +598,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
         OnGroundTimer = 0; //remove the on ground timer
         CurrentState = PlayerStates.InAir;
-        
+
         playerCollision.canCheck = true;
         stickToWall = true;
         currentMaxSpeed = maxSpeedOnGround;
@@ -655,80 +667,87 @@ public class PlayerMovementv3 : MonoBehaviour
         cam_crouchingSpeed = 9f;
     }
     ///////////////////////////////////////////////////////MovePlayer/////////////////////////////////////////////////////////
+    Vector3 lerpVelocityOfMovement;
+    Vector3 movementDirection;
     void MovePlayer(float Hor, float Ver, float D)
     {
         //find the direction to move in, based on the direction inputs
-        Vector3 MovementDirection = (faceOrientation.forward * Ver) + (faceOrientation.right * Hor);  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        MovementDirection = MovementDirection.normalized;
+        movementDirection = (faceOrientation.forward * Ver) + (faceOrientation.right * Hor);  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        movementDirection = movementDirection.normalized;
         //if we are no longer pressing and input, carryon moving in the last direction we were set to move in
         if (Hor == 0 && Ver == 0)
-            MovementDirection = Rigid.velocity.normalized;
+            movementDirection = Rigid.velocity.normalized;
 
-        MovementDirection = MovementDirection * ActSpeed;
+        movementDirection = movementDirection * ActSpeed;
 
         //apply Gravity and Y velocity to the movement direction 
-        MovementDirection.y = Rigid.velocity.y;
+        movementDirection.y = Rigid.velocity.y;
 
         //apply adjustment to acceleration
         float Acel = DirectionControl * AdjustmentAmt;
-        Vector3 LerpVelocity = Vector3.Lerp(Rigid.velocity, MovementDirection, Acel * D);
-        Rigid.velocity = LerpVelocity;
+        lerpVelocityOfMovement = Vector3.Lerp(Rigid.velocity, movementDirection, Acel * D);
+        Rigid.velocity = lerpVelocityOfMovement;
     }
     ///////////////////////////////////////////////////////MoveInAir/////////////////////////////////////////////////////////
+    Vector3 lerpVelocityInAir;
+    Vector3 dirinAir;
     void MoveInAir(float Hor, float Ver, float D)
     {
         //find the direction to move in, based on the direction inputs
-        Vector3 MovementDirection = (faceOrientation.forward * Ver) + (faceOrientation.right * Hor);
-        MovementDirection = MovementDirection.normalized;
+        dirinAir = (faceOrientation.forward * Ver) + (faceOrientation.right * Hor);
+        dirinAir = dirinAir.normalized;
         //if we are no longer pressing and input, carryon moving in the last direction we were set to move in
         if (Hor == 0 && Ver == 0)
-            MovementDirection = Rigid.velocity.normalized;
+            dirinAir = Rigid.velocity.normalized;
 
-        MovementDirection = MovementDirection * ActSpeed;
+        dirinAir = dirinAir * ActSpeed;
 
         //apply Gravity and Y velocity to the movement direction 
-        MovementDirection.y = Rigid.velocity.y;
+        dirinAir.y = Rigid.velocity.y;
 
         //lerp to our movement direction based on how much airal control we have
-        Vector3 LerpVelocity = Vector3.Lerp(Rigid.velocity, MovementDirection, InAirControl * D);
-        Rigid.velocity = LerpVelocity;
+        lerpVelocityInAir = Vector3.Lerp(Rigid.velocity, dirinAir, InAirControl * D);
+        Rigid.velocity = lerpVelocityInAir;
 
     }
     ///////////////////////////////////////////////////////WallMove/////////////////////////////////////////////////////////
+    Vector3 lerpVelocity_WallRun;
+    Vector3 movementDir_WallRun;
     void WallMove(float Ver, float D)
     {
-        
+
         //get the direction to run up this wall if we press forward (keep in mind this only works if the wall is infront or to the side of the player as we run along on, on walls to our immediate right or left we slide down
         if (rightWallCheck && stickToWall)
         {
             stickyMovement = faceOrientation.right * dragForce;
             Debug.Log("right");
         }
-        else if(leftWallCheck && stickToWall)
+        else if (leftWallCheck && stickToWall)
         {
             stickyMovement = -faceOrientation.right * dragForce;
 
             Debug.Log("left");
         }
-        Vector3 MovementDirection = faceOrientation.up * Ver; 
-        MovementDirection = MovementDirection * WallRunUpwardsMovement;
-        MovementDirection = MovementDirection + stickyMovement;
+        movementDir_WallRun = faceOrientation.up * Ver;
+        movementDir_WallRun = movementDir_WallRun * WallRunUpwardsMovement;
+        movementDir_WallRun = movementDir_WallRun + stickyMovement;
         //our x z velocity are our momentum applied to our forward direction
-        MovementDirection += faceOrientation.forward * ActSpeed;
+        movementDir_WallRun += faceOrientation.forward * ActSpeed;
 
-        Vector3 LerpVelocity = Vector3.Lerp(Rigid.velocity, MovementDirection, WallRunSpeedAcceleration * D);
-        Rigid.velocity = LerpVelocity;
+        lerpVelocity_WallRun = Vector3.Lerp(Rigid.velocity, movementDir_WallRun, WallRunSpeedAcceleration * D);
+        Rigid.velocity = lerpVelocity_WallRun;
     }
     ///////////////////////////////////////////////////////JumpUp/////////////////////////////////////////////////////////
+    Vector3 velAmt;
     void JumpUp()
     {
         //only jump if we are still on the ground
         if (CurrentState == PlayerStates.Grounded)
         {
             //reduce our velocity on the y axis so our jump force can be added
-            Vector3 VelAmt = Rigid.velocity;
-            VelAmt.y = 0;
-            Rigid.velocity = VelAmt;
+            velAmt = Rigid.velocity;
+            velAmt.y = 0;
+            Rigid.velocity = velAmt;
             //add our jump force
             Rigid.AddForce(transform.up * JumpHeight, ForceMode.Impulse);
             //we are now in the air
@@ -771,6 +790,7 @@ public class PlayerMovementv3 : MonoBehaviour
     }
     ///////////////////////////////////////////////////////SlideSelf/////////////////////////////////////////////////////////
     //slide our character forwards
+    Vector3 slideDir;
     void SlideSelf()
     {
 
@@ -781,8 +801,8 @@ public class PlayerMovementv3 : MonoBehaviour
         AdjustmentAmt = 0;
 
         //find direction
-        Vector3 Dir = Rigid.velocity.normalized;
-        Dir.y = 0;
+        slideDir = Rigid.velocity.normalized;
+        slideDir.y = 0;
 
         //slide in direction
         Rigid.AddForce(faceOrientation.forward * SlideAmt, ForceMode.Impulse);

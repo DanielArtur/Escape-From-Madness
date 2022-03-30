@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class PlayerCollisionv2 : MonoBehaviour
@@ -36,18 +37,36 @@ public class PlayerCollisionv2 : MonoBehaviour
     [Tooltip("Y rotation of camera")]
     [SerializeField] private Transform faceOrientation; // Y rotation of camera
 
-    
+    //Additional variables for FLOORCHECK:
+    Collider[] floorColliders;
+    // Sphere position
+    Vector3 point_floor;
+    Vector3 point2_floor;
 
+    //Additional variables for WALLCHECK:
+    Collider[] wallColliders;
+    //Sphere position
+    Vector3 point_wall;
 
+    //Additional variables for RoofCheck:
+    Collider[] roofColliders;
+    //Sphere position
+    Vector3 point_roof;
+
+    //Additional variables for LEDGECHECK:
+    Vector3 rayPosition;
+    RaycastHit hit;
 
     //check if there is floor below us
     public bool CheckFloor(Vector3 Direction)
     {
-        Vector3 Pos = transform.position + (Direction * bottomOffset);
-        Vector3 Pos2 = transform.position + (Direction * bottomOffset2);
-        Collider[] hitColliders = Physics.OverlapCapsule(Pos, Pos2, FloorCheckRadius, FloorLayers);
-        if (hitColliders.Length > 0)
+        point_floor = transform.position + (Direction * bottomOffset);
+        point2_floor = transform.position + (Direction * bottomOffset2);
+        floorColliders = Physics.OverlapCapsule(point_floor, point2_floor, FloorCheckRadius, FloorLayers);
+        if (floorColliders.Length > 0)
         {
+            // Empty our array:
+            Array.Clear(floorColliders, 0, floorColliders.Length);
             //we are on the ground
             return true;
         }
@@ -61,16 +80,19 @@ public class PlayerCollisionv2 : MonoBehaviour
         if (!blockWallRun)
         {
 
-            Vector3 Pos = transform.position + (Direction * frontOffset);
-            Collider[] hitColliders = Physics.OverlapSphere(Pos, WallCheckRadius, WallLayers);
-            if (hitColliders.Length > 0)
+            point_wall = transform.position + (Direction * frontOffset);
+            wallColliders = Physics.OverlapSphere(point_wall, WallCheckRadius, WallLayers);
+            if (wallColliders.Length > 0)
             {
                 canCheck = false;
+
+                // Empty our array:
+                Array.Clear(wallColliders, 0, wallColliders.Length);
+
                 //we are on the ground
-              
                 return true;
             }
-            
+
         }
 
 
@@ -81,10 +103,13 @@ public class PlayerCollisionv2 : MonoBehaviour
     //check there is nothing above our head so we can stand up
     public bool CheckRoof(Vector3 Direction)
     {
-        Vector3 Pos = transform.position + (Direction * upOffset);
-        Collider[] hitColliders = Physics.OverlapSphere(Pos, WallCheckRadius, RoofLayers);
-        if (hitColliders.Length > 0)
+        point_roof = transform.position + (Direction * upOffset);
+        roofColliders = Physics.OverlapSphere(point_roof, WallCheckRadius, RoofLayers);
+        if (roofColliders.Length > 0)
         {
+            // Empty our array:
+            Array.Clear(roofColliders, 0, roofColliders.Length);
+
             //we are on the ground
             return true;
         }
@@ -94,10 +119,10 @@ public class PlayerCollisionv2 : MonoBehaviour
 
     public Vector3 CheckLedges()
     {
-        Vector3 RayPos = transform.position + (faceOrientation.forward * LedgeGrabForwardPos) + (faceOrientation.up * LedgeGrabUpwardsPos);
+        rayPosition = transform.position + (faceOrientation.forward * LedgeGrabForwardPos) + (faceOrientation.up * LedgeGrabUpwardsPos);
 
-        RaycastHit hit;
-        if (Physics.Raycast(RayPos, -faceOrientation.up, out hit, LedgeGrabDistance, LedgeGrabLayers))
+
+        if (Physics.Raycast(rayPosition, -faceOrientation.up, out hit, LedgeGrabDistance, LedgeGrabLayers))
             return hit.point;
 
 
@@ -122,6 +147,6 @@ public class PlayerCollisionv2 : MonoBehaviour
         Gizmos.color = Color.cyan;
         Vector3 Pos4 = transform.position + (faceOrientation.forward * LedgeGrabForwardPos) + (faceOrientation.up * LedgeGrabUpwardsPos);
         Gizmos.DrawLine(Pos4, Pos4 + (-faceOrientation.up * LedgeGrabDistance));
-       
+
     }
 }

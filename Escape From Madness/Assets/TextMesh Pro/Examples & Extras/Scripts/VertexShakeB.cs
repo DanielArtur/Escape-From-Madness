@@ -118,7 +118,7 @@ namespace TMPro.Examples
                         // Get the vertices of the mesh used by this text element (character or sprite).
                         Vector3[] sourceVertices = textInfo.meshInfo[materialIndex].vertices;
 
-                        // Determine the center point of each character at the baseline.
+                        // Determine the center point_floor of each character at the baseline.
                         Vector3 charCenter = (sourceVertices[vertexIndex + 0] + sourceVertices[vertexIndex + 2]) / 2;
 
                         // Need to translate all 4 vertices of each quad to aligned with center of character.
