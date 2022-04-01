@@ -12,8 +12,11 @@ public class TeleportBack : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if(other.CompareTag("Player"))
-        player.transform.position = destination.transform.position;
+        if (other.CompareTag("Player"))
+        {
+            player.transform.position = destination.transform.position;
+            player.GetComponent<Rigidbody>().velocity = Vector3.zero;       
         
+        }
     }
 }

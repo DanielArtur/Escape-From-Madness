@@ -173,22 +173,10 @@ public class PlayerMovementv3 : MonoBehaviour
 
         HandleFov(DeltaForUpdate);
 
+        //Rotate our camera
+        CameraTilt();
 
-        if (leftWallCheck)
-        {
-
-            tilt = Mathf.Lerp(tilt, -camTilt, camTiltTime * Time.deltaTime);
-        }
-        else if (rightWallCheck)
-        {
-            tilt = Mathf.Lerp(tilt, camTilt, camTiltTime * Time.deltaTime);
-
-        }
-        else if (tilt != 0)
-        {
-
-            tilt = Mathf.Lerp(tilt, 0, camTiltTime * Time.deltaTime);
-        }
+        
 
 
         if (sliding && !CheckSliding())
@@ -401,7 +389,7 @@ public class PlayerMovementv3 : MonoBehaviour
             LerpSpeed(InputMagnitude, DeltaForFixed, targetSpd);
 
             MovePlayer(horInputInFixed, verInputInFixed, DeltaForFixed);
-            //    TurnPlayer(CamX, DeltaForUpdate, TurnSpeed);
+            
 
             //check for crouching 
             if (Input.GetButton("Crouching"))
@@ -669,11 +657,40 @@ public class PlayerMovementv3 : MonoBehaviour
     ///////////////////////////////////////////////////////MovePlayer/////////////////////////////////////////////////////////
     Vector3 lerpVelocityOfMovement;
     Vector3 movementDirection;
+
+    public LayerMask normwalls;
+    Vector3 playerPos13;
     void MovePlayer(float Hor, float Ver, float D)
     {
-        //find the direction to move in, based on the direction inputs
-        movementDirection = (faceOrientation.forward * Ver) + (faceOrientation.right * Hor);  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        movementDirection = movementDirection.normalized;
+        playerPos13 = new Vector3(transform.position.x, 6.5f, transform.position.z);
+        RaycastHit testray;
+        
+        Collider[] cols = Physics.OverlapSphere(playerPos13, 1f, normwalls);
+        if(cols.Length > 0) Debug.Log("Lˆytyy!");
+
+        if (Physics.SphereCast(playerPos13, 0.9f, faceOrientation.forward, out testray, 1f, normwalls))
+        {
+            
+            //Jos sein‰ on oikealla, niin ‰l‰ k‰yt‰ hor/ver arvo directionissa. K‰yt‰ raycasteja. Kato checkwallsforjumping
+
+            Debug.Log("P‰‰ll‰");
+           // Gizmos.color = Color.magenta;
+            //Gizmos.DrawSphere(testray.point, 0.9f);
+            //T‰ss‰ tapauksessa oikea suunta sein‰‰ pitkin: 
+            Vector3 direction12 = Vector3.ProjectOnPlane((faceOrientation.forward * Ver), testray.normal);
+            direction12 += (faceOrientation.right * Hor);
+            Debug.DrawRay(testray.point, direction12, Color.blue);
+            movementDirection = direction12;
+            
+        }
+        else
+        {
+
+
+            //find the direction to move in, based on the direction inputs
+            movementDirection = (faceOrientation.forward * Ver) + (faceOrientation.right * Hor);
+            movementDirection = movementDirection.normalized;
+        }
         //if we are no longer pressing and input, carryon moving in the last direction we were set to move in
         if (Hor == 0 && Ver == 0)
             movementDirection = Rigid.velocity.normalized;
@@ -840,17 +857,66 @@ public class PlayerMovementv3 : MonoBehaviour
 
     }
     ///////////////////////////////////////////////////////OnDrawGizmosSelected/////////////////////////////////////////////////////////
+    
     void OnDrawGizmosSelected()
     {
         //Wall check
-        Gizmos.color = Color.magenta;
-        Vector3 dir = transform.TransformDirection(-faceOrientation.right) * wallCheckDistance;
-        Gizmos.DrawRay(transform.position, dir);
+        /* Gizmos.color = Color.magenta;
+         Vector3 dir = transform.TransformDirection(-faceOrientation.right) * wallCheckDistance;
+         Gizmos.DrawRay(transform.position, dir);
 
-        Gizmos.color = Color.magenta;
-        Vector3 dir2 = transform.TransformDirection(faceOrientation.right) * wallCheckDistance;
-        Gizmos.DrawRay(transform.position, dir2);
+         Gizmos.color = Color.magenta;
+         Vector3 dir2 = transform.TransformDirection(faceOrientation.right) * wallCheckDistance;
+         Gizmos.DrawRay(transform.position, dir2);
+        */
+        //Testing ProjectOnPlane
+        /*
+        Vector3 playerPos12 = new Vector3(transform.position.x, 5, transform.position.z);
+        RaycastHit testray;
+        
+        if(Physics.Raycast(playerPos12, faceOrientation.forward, out testray, 5f))
+        {
+            Debug.DrawRay(testray.point, testray.normal, Color.green);
+            //T‰ss‰ tapauksessa oikea siuunta sein‰‰ pitkin: 
+            Vector3 direction12 = Vector3.ProjectOnPlane(faceOrientation.forward, testray.normal);
+            Debug.DrawRay(testray.point, direction12, Color.blue);
+
+
+        }
+        
+        */
+
+        //Gizmos.DrawSphere(transform.position, 5f, faceOrientation.forward, 2f);
+       // Gizmos.color = Color.black;
+       // Gizmos.DrawSphere(playerPos13, 1f);
+
+        //Gizmos.color = Color.magenta;
+        //Gizmos.DrawSphere(playerPos13, faceOrientation.forward, 0.7f);
 
     }
+    ///////////////////////////////////////////////////////CameraTilt/////////////////////////////////////////////////////////
+    /// <summary>
+    /// Rotates our comera when running in walls. The Rotation depends on which side of the wall is from the player.
+    /// </summary>
+    private void CameraTilt()
+    {
+        if (leftWallCheck)
+        {
 
+            tilt = Mathf.Lerp(tilt, -camTilt, camTiltTime * Time.deltaTime);
+        }
+        else if (rightWallCheck)
+        {
+            tilt = Mathf.Lerp(tilt, camTilt, camTiltTime * Time.deltaTime);
+
+        }
+        else if (tilt != 0)
+        {
+
+            tilt = Mathf.Lerp(tilt, 0, camTiltTime * Time.deltaTime);
+        }
+
+
+    }
+        
 }
