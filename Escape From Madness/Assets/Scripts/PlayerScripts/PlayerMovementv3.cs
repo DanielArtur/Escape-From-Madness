@@ -35,6 +35,8 @@ public class PlayerMovementv3 : MonoBehaviour
     public Camera Cam; //what will function as our players head to tilt up and down (this is a pivot point_floor in our model that the cameras are children of
     [Tooltip("Walls that can be detected by rightWallCheck and leftWallCheck rays")]
     public LayerMask wallLayers; // Walls that can be detected by rightWallCheck and leftWallCheck rays
+   
+    
     ////////////////////////////////////////////////////////////////Physics////////////////////////////////////////////////////////////////////
     [Header("Physics")]
     private float currentMaxSpeed; //how fast we run forward
@@ -72,12 +74,9 @@ public class PlayerMovementv3 : MonoBehaviour
     [SerializeField] private float camTilt;
     [SerializeField] private float camTiltTime;
 
-
-
     [Header("StickyMovement")]
     // Sticky Movement:
     [SerializeField] float dragForce;
-
     private bool stickToWall = true;
 
     ////////////////////////////////////////////////////////////////Wall Jumping////////////////////////////////////////////////////////////////////
@@ -660,18 +659,23 @@ public class PlayerMovementv3 : MonoBehaviour
 
     public LayerMask normwalls;
     Vector3 playerPos13;
+    RaycastHit testray;
     void MovePlayer(float Hor, float Ver, float D)
     {
         playerPos13 = new Vector3(transform.position.x, 6.5f, transform.position.z);
-        RaycastHit testray;
-        
+       
         Collider[] cols = Physics.OverlapSphere(playerPos13, 1f, normwalls);
         if(cols.Length > 0) Debug.Log("Löytyy!");
 
         if (Physics.SphereCast(playerPos13, 0.9f, faceOrientation.forward, out testray, 1f, normwalls))
         {
-            
+            //Wall on the left or right
             //Jos seinä on oikealla, niin älä käytä hor/ver arvo directionissa. Käytä raycasteja. Kato checkwallsforjumping
+            CheckPlayerSides(testray.point);
+         //   if (onTheLeft && Hor < 0) Hor = 0;
+          //  if (onTheRight && Hor > 0) Hor = 0;
+          //  if (inFront && Ver < 0) Ver = 0;
+           // if (behind && Ver > 0) Ver = 0;
 
             Debug.Log("Päällä");
            // Gizmos.color = Color.magenta;
@@ -680,8 +684,11 @@ public class PlayerMovementv3 : MonoBehaviour
             Vector3 direction12 = Vector3.ProjectOnPlane((faceOrientation.forward * Ver), testray.normal);
             direction12 += (faceOrientation.right * Hor);
             Debug.DrawRay(testray.point, direction12, Color.blue);
-            movementDirection = direction12;
+            movementDirection = direction12.normalized;
+
             
+
+
         }
         else
         {
@@ -691,6 +698,10 @@ public class PlayerMovementv3 : MonoBehaviour
             movementDirection = (faceOrientation.forward * Ver) + (faceOrientation.right * Hor);
             movementDirection = movementDirection.normalized;
         }
+
+
+
+
         //if we are no longer pressing and input, carryon moving in the last direction we were set to move in
         if (Hor == 0 && Ver == 0)
             movementDirection = Rigid.velocity.normalized;
@@ -705,6 +716,7 @@ public class PlayerMovementv3 : MonoBehaviour
         lerpVelocityOfMovement = Vector3.Lerp(Rigid.velocity, movementDirection, Acel * D);
         Rigid.velocity = lerpVelocityOfMovement;
     }
+
     ///////////////////////////////////////////////////////MoveInAir/////////////////////////////////////////////////////////
     Vector3 lerpVelocityInAir;
     Vector3 dirinAir;
@@ -854,7 +866,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
         }
 
-
+        
     }
     ///////////////////////////////////////////////////////OnDrawGizmosSelected/////////////////////////////////////////////////////////
     
@@ -918,5 +930,58 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
     }
-        
+
+    
+    Vector3 hitPointLocal; //RayCastHit Position from Player's perspective. 
+
+
+
+    bool onTheRight = false;
+    bool onTheLeft = false;
+    bool inFront = false;
+    bool behind = false;
+    /// <summary>
+    /// Checks whether wall is on player's right or left. (Used for PresenceOnPlane -feature)
+    /// </summary>
+    void CheckPlayerSides(Vector3 point)
+    {
+        onTheRight = false;
+        onTheLeft = false;
+        bool inFront = false;
+        bool behind = false;
+
+
+        hitPointLocal = faceOrientation.transform.InverseTransformPoint(point);
+
+        if(hitPointLocal.x < 0) 
+        {
+            onTheLeft = true;
+            Debug.Log("LEFT");
+
+            return;
+        }
+
+        else if (hitPointLocal.x > 0)
+        {
+            onTheRight = true;
+            Debug.Log("RIGHT");
+
+        }
+
+        if(hitPointLocal.z > 0)
+        {
+            inFront = true;
+            Debug.Log("inFront");
+        }
+        else if(hitPointLocal.z < 0)
+        {
+            behind = true;
+            Debug.Log("Behind");
+        }
+
+
+
+       
+
+    }
 }
