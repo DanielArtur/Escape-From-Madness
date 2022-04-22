@@ -35,8 +35,8 @@ public class PlayerMovementv3 : MonoBehaviour
     public Camera Cam; //what will function as our players head to tilt up and down (this is a pivot point_floor in our model that the cameras are children of
     [Tooltip("Walls that can be detected by rightWallCheck and leftWallCheck rays")]
     public LayerMask wallLayers; // Walls that can be detected by rightWallCheck and leftWallCheck rays
-   
-    
+
+
     ////////////////////////////////////////////////////////////////Physics////////////////////////////////////////////////////////////////////
     [Header("Physics")]
     private float currentMaxSpeed; //how fast we run forward
@@ -67,22 +67,17 @@ public class PlayerMovementv3 : MonoBehaviour
     public float TimeBeforeWallRun = 0.2f; //how long we have to be in the air before we can wallrun
     public float WallRunUpwardsMovement = 2f; //how much we move up a wall when running on it (make this 0 to just slightly move down a wall we run on
     public float WallRunSpeedAcceleration = 2f; //how quickly we build speed to run up walls
-    Vector3 stickyMovement;
+
 
     // Camera Tilt:
     public float tilt;
     [SerializeField] private float camTilt;
     [SerializeField] private float camTiltTime;
 
-    [Header("StickyMovement")]
-    // Sticky Movement:
-    [SerializeField] float dragForce;
-    private bool stickToWall = true;
-
     ////////////////////////////////////////////////////////////////Wall Jumping////////////////////////////////////////////////////////////////////
     [Header("Wall Jumping")]
-    private bool leftWallCheck;   // From witch direction to jump
-    private bool rightWallCheck;
+    public bool leftWallCheck;   // From witch direction to jump
+    public bool rightWallCheck;
     [SerializeField] private float wallCheckDistance;  // at what diostance we can check walls
     public bool infiniteJumping = false;  // Can we jump from walls many times before landing
     [SerializeField] bool highJump = false;
@@ -93,10 +88,6 @@ public class PlayerMovementv3 : MonoBehaviour
     [SerializeField] float wallJumpHeight; // how high to jump from wall 
     // WallJump direction:
     private Vector3 wallJumpDir;
-
-    // Variables that store position of raycastHit for direction calculation:
-    private RaycastHit leftWallHit; // distance for wall check
-    private RaycastHit rightWallHit; // distance for wall check
 
     ////////////////////////////////////////////////////////////////Crouching////////////////////////////////////////////////////////////////////
     [Header("Crouching")]
@@ -146,6 +137,13 @@ public class PlayerMovementv3 : MonoBehaviour
     [SerializeField] float cam_WallFOV = 160;
     [SerializeField] float cam_DefaultMaxFOV = 120;
     [SerializeField] float cam_SlideFOV = 140;
+
+
+
+
+    bool firstTime = true;
+    
+
     ////////////////////////////////////////////////////////////////Start////////////////////////////////////////////////////////////////////
     void Start()
     {
@@ -175,8 +173,8 @@ public class PlayerMovementv3 : MonoBehaviour
         //Rotate our camera
         CameraTilt();
 
-        
 
+        Debug.Log(playerCollision.CheckSlope());
 
         if (sliding && !CheckSliding())
         {
@@ -216,6 +214,8 @@ public class PlayerMovementv3 : MonoBehaviour
 
         if (CurrentState == PlayerStates.Grounded)
         {
+           
+
             //if we press jump
             if (Input.GetButtonDown("Jump"))
             {
@@ -261,8 +261,6 @@ public class PlayerMovementv3 : MonoBehaviour
         //*********************************************OnWalls*********************************************//
         else if (CurrentState == PlayerStates.OnWalls)
         {
-            CheckWallForJump();
-
 
             //check for ledge grabs
             if (Input.GetButton("Grab"))
@@ -364,9 +362,6 @@ public class PlayerMovementv3 : MonoBehaviour
         horInputInFixed = Input.GetAxis("Horizontal");
         verInputInFixed = Input.GetAxis("Vertical");
 
-        //handle our fov
-        // HandleFov(DeltaForUpdate);
-
 
 
         //*********************************************Grounded_Fixed***************************************************//
@@ -388,21 +383,30 @@ public class PlayerMovementv3 : MonoBehaviour
             LerpSpeed(InputMagnitude, DeltaForFixed, targetSpd);
 
             MovePlayer(horInputInFixed, verInputInFixed, DeltaForFixed);
-            
+
 
             //check for crouching 
             if (Input.GetButton("Crouching"))
             {
-
+                
                 //start crouching
                 if (!Crouch)
                 {
                     StartCrouch();
                 }
+
+                if (ActSpeed > SlideSpeedLimit && playerCollision.onTheFloor)
+                {
+                    sliding = true;
+                    SlideSelf();
+
+                    StartCoroutine(SlideBlock());
+                }
+
             }
             else
             {
-
+              //  sliding = false;
                 //stand up
                 bool check = playerCollision.CheckRoof(faceOrientation.up);
                 if (!check)
@@ -447,8 +451,6 @@ public class PlayerMovementv3 : MonoBehaviour
 
             MoveInAir(horInputInFixed, verInputInFixed, DeltaForFixed);
 
-            //turn our player with the in air modifier
-            //  TurnPlayer(CamX, DeltaForUpdate, TurnSpeedInAir);
         }
         //*********************************************OnWalls_Fixed*************************************************//
         else if (CurrentState == PlayerStates.OnWalls)
@@ -458,75 +460,16 @@ public class PlayerMovementv3 : MonoBehaviour
             //tick our wall run timer
             ActWallRunTime += DeltaForFixed;
 
-            //turn our player with the in air modifier
-            //  TurnPlayer(CamX, DeltaForUpdate, TurnSpeedOnWalls);
-
             //move our player when on a wall
             WallMove(verInputInFixed, DeltaForFixed);
 
             //**************************************************************WALLJUMP*************************************************************/
-            if (Input.GetButton("Jump") && ActWallRunTime > 0.1f)
-            {
-                stickToWall = false;
-
-                if (leftWallCheck)
-                {
-
-                    if (highJump)
-                    {
-                        // Jump from left wall
-                        wallJumpDir = faceOrientation.forward * wallRunJumpForwardVel + transform.up * wallJumpHeight + leftWallHit.normal;
-                        Rigid.velocity = new Vector3(Rigid.velocity.x, 0, Rigid.velocity.z);
-                        Rigid.AddForce(wallJumpDir * wallJumpForce, ForceMode.Force);
-                    }
-                    else
-                    {
-
-                        wallJumpDir = transform.up * wallJumpHeight + leftWallHit.normal;
-                        Rigid.velocity = new Vector3(Rigid.velocity.x, 0, Rigid.velocity.z);
-                        Rigid.AddForce(wallJumpDir * wallJumpForce, ForceMode.Force);
-                    }
-
-
-
-
-
-
-
-
-                }
-                else if (rightWallCheck)
-                {
-                    //Jump from right wall
-                    if (highJump)
-                    {
-                        wallJumpDir = faceOrientation.forward * wallRunJumpForwardVel + transform.up * wallJumpHeight + rightWallHit.normal;
-                        Rigid.velocity = new Vector3(Rigid.velocity.x, 0, Rigid.velocity.z);
-                        Rigid.AddForce(wallJumpDir * wallJumpForce, ForceMode.Force);
-                    }
-                    else
-                    {
-
-                        wallJumpDir = transform.up * wallJumpHeight + rightWallHit.normal;
-                        Rigid.velocity = new Vector3(Rigid.velocity.x, 0, Rigid.velocity.z);
-                        Rigid.AddForce(wallJumpDir * wallJumpForce, ForceMode.Force);
-
-                    }
-
-                }
-
-
-
-
-
-
-
-            }
+            WallJump();
         }
 
     }
 
-    ////////////////////////////////////////////////////////////////Update////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////LateUpdate////////////////////////////////////////////////////////////////////
     private void LateUpdate()
     {
         // Update our target position for camera:
@@ -548,13 +491,32 @@ public class PlayerMovementv3 : MonoBehaviour
         //lerp by a factor of our acceleration
         ActSpeed = Mathf.Lerp(ActSpeed, LerpAmt, D * Accel);
     }
+
+
     ///////////////////////////////////////////////////////SetSpeedToVelocity/////////////////////////////////////////////////////////
     //when in the air or on a wall, we set our action speed to the velocity magnitude, this is so that when we reach the ground again, our speed will carry over our momentum
     void SetSpeedToVelocity()
     {
-        float Mag = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
-        ActSpeed = Mag;
+        if (Input.GetButton("Crouching"))
+        {
+            //slideDir = Rigid.velocity;
+            //slideDir.y = 0;
+
+            //Rigid.velocity = slideDir * 4;
+            float Mag = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
+            ActSpeed = Mag * 5;
+            Debug.Log("Sliding");
+        }
+        else
+        {
+
+            float Mag = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
+            //Debug.Log(Mag);
+            ActSpeed = Mag;
+        }
     }
+
+
     ///////////////////////////////////////////////////////CheckWalls/////////////////////////////////////////////////////////
     bool CheckWalls(float X, float Y)
     {
@@ -564,14 +526,12 @@ public class PlayerMovementv3 : MonoBehaviour
         if (ActWallRunTime >= WallRunTime) //if our wall run timer is more than the amount we can run on walls for, we cannot wall run
             return false;
 
-        //check the collision direction for any walls
-        float ClampedY = Mathf.Clamp(Y, 0, 1);
-        Vector3 Dir = faceOrientation.forward * ClampedY + faceOrientation.right * X;
-
-        bool WallCol = playerCollision.CheckWall(Dir);
+        bool WallCol = playerCollision.CheckWall();
 
         return WallCol;
     }
+
+
     ///////////////////////////////////////////////////////SetInAir/////////////////////////////////////////////////////////
     void SetInAir()
     {
@@ -587,9 +547,10 @@ public class PlayerMovementv3 : MonoBehaviour
         CurrentState = PlayerStates.InAir;
 
         playerCollision.canCheck = true;
-        stickToWall = true;
         currentMaxSpeed = maxSpeedOnGround;
     }
+
+
     ///////////////////////////////////////////////////////SetOnGround/////////////////////////////////////////////////////////
     void SetOnGround()
     {
@@ -603,16 +564,25 @@ public class PlayerMovementv3 : MonoBehaviour
         rightWallCheck = false;
         leftWallCheck = false;
         currentMaxSpeed = maxSpeedOnGround;
+
+        
     }
+
+
     ///////////////////////////////////////////////////////SetOnWall/////////////////////////////////////////////////////////
     void SetOnWall()
     {
         OnGroundTimer = 0; //remove the on ground timer
         InAirTimer = 0; //remove the in air timer
+        CalculateWallRunDir(playerCollision.wallRayHit); // Calculate direction along the wall
         CurrentState = PlayerStates.OnWalls;
         cam_CurrentMaxFov = cam_WallFOV;
         ActSpeed = maxSpeedOnWalls;
+
+
     }
+
+
     ///////////////////////////////////////////////////////LedgeGrab/////////////////////////////////////////////////////////
     void LedgeGrab(Vector3 Ledge)
     {
@@ -627,6 +597,8 @@ public class PlayerMovementv3 : MonoBehaviour
         //start ledge grabs
         CurrentState = PlayerStates.LedgeGrab;
     }
+
+
     ///////////////////////////////////////////////////////StartCrouch/////////////////////////////////////////////////////////
     void StartCrouch()
     {
@@ -634,14 +606,17 @@ public class PlayerMovementv3 : MonoBehaviour
 
         standCap.enabled = false;
         crouchCap.enabled = true;
-
-        if (ActSpeed > SlideSpeedLimit && canSlide)
+        //ActSpeed > SlideSpeedLimit && canSlide
+     /*   if (true)
         {
             sliding = true;
             SlideSelf();
+            
             StartCoroutine(SlideBlock());
-        }
+        }*/
     }
+
+
     ///////////////////////////////////////////////////////StopCrouching/////////////////////////////////////////////////////////
     void StopCrouching()
     {
@@ -651,55 +626,42 @@ public class PlayerMovementv3 : MonoBehaviour
         crouchCap.enabled = false;
         standCap.enabled = true;
 
+        firstTime = true;
+
         cam_crouchingSpeed = 9f;
     }
+
+
     ///////////////////////////////////////////////////////MovePlayer/////////////////////////////////////////////////////////
     Vector3 lerpVelocityOfMovement;
     Vector3 movementDirection;
 
     public LayerMask normwalls;
-    Vector3 playerPos13;
+    Vector3 directionAlongWall_OnGround;
     RaycastHit testray;
+
     void MovePlayer(float Hor, float Ver, float D)
     {
-        playerPos13 = new Vector3(transform.position.x, 6.5f, transform.position.z);
-       
-        Collider[] cols = Physics.OverlapSphere(playerPos13, 1f, normwalls);
-        if(cols.Length > 0) Debug.Log("Lˆytyy!");
+        if (sliding)
+            return;
 
-        if (Physics.SphereCast(playerPos13, 0.9f, faceOrientation.forward, out testray, 1f, normwalls))
+        Debug.Log("MovePlayer");
+
+        if ((Physics.SphereCast(faceOrientation.transform.position, 0.9f, faceOrientation.forward, out testray, 1f, normwalls) && CheckPlayerVertical(testray.point, Ver, Hor)) || Physics.SphereCast(faceOrientation.transform.position, 0.9f, -faceOrientation.forward, out testray, 1f, normwalls) && CheckPlayerVertical(testray.point, Ver, Hor))
         {
-            //Wall on the left or right
-            //Jos sein‰ on oikealla, niin ‰l‰ k‰yt‰ hor/ver arvo directionissa. K‰yt‰ raycasteja. Kato checkwallsforjumping
-            CheckPlayerSides(testray.point);
-         //   if (onTheLeft && Hor < 0) Hor = 0;
-          //  if (onTheRight && Hor > 0) Hor = 0;
-          //  if (inFront && Ver < 0) Ver = 0;
-           // if (behind && Ver > 0) Ver = 0;
 
-            Debug.Log("P‰‰ll‰");
-           // Gizmos.color = Color.magenta;
-            //Gizmos.DrawSphere(testray.point, 0.9f);
             //T‰ss‰ tapauksessa oikea suunta sein‰‰ pitkin: 
-            Vector3 direction12 = Vector3.ProjectOnPlane((faceOrientation.forward * Ver), testray.normal);
-            direction12 += (faceOrientation.right * Hor);
-            Debug.DrawRay(testray.point, direction12, Color.blue);
-            movementDirection = direction12.normalized;
+            directionAlongWall_OnGround = Vector3.ProjectOnPlane((faceOrientation.forward * Ver) + (faceOrientation.right * Hor), testray.normal);
 
-            
-
-
+            movementDirection = directionAlongWall_OnGround.normalized;
+            Debug.Log(movementDirection);
         }
         else
         {
-
-
             //find the direction to move in, based on the direction inputs
             movementDirection = (faceOrientation.forward * Ver) + (faceOrientation.right * Hor);
             movementDirection = movementDirection.normalized;
         }
-
-
 
 
         //if we are no longer pressing and input, carryon moving in the last direction we were set to move in
@@ -715,7 +677,11 @@ public class PlayerMovementv3 : MonoBehaviour
         float Acel = DirectionControl * AdjustmentAmt;
         lerpVelocityOfMovement = Vector3.Lerp(Rigid.velocity, movementDirection, Acel * D);
         Rigid.velocity = lerpVelocityOfMovement;
+
+        
+
     }
+
 
     ///////////////////////////////////////////////////////MoveInAir/////////////////////////////////////////////////////////
     Vector3 lerpVelocityInAir;
@@ -739,33 +705,31 @@ public class PlayerMovementv3 : MonoBehaviour
         Rigid.velocity = lerpVelocityInAir;
 
     }
+
+
     ///////////////////////////////////////////////////////WallMove/////////////////////////////////////////////////////////
     Vector3 lerpVelocity_WallRun;
     Vector3 movementDir_WallRun;
     void WallMove(float Ver, float D)
     {
-
         //get the direction to run up this wall if we press forward (keep in mind this only works if the wall is infront or to the side of the player as we run along on, on walls to our immediate right or left we slide down
-        if (rightWallCheck && stickToWall)
-        {
-            stickyMovement = faceOrientation.right * dragForce;
-            Debug.Log("right");
-        }
-        else if (leftWallCheck && stickToWall)
-        {
-            stickyMovement = -faceOrientation.right * dragForce;
 
-            Debug.Log("left");
-        }
         movementDir_WallRun = faceOrientation.up * Ver;
         movementDir_WallRun = movementDir_WallRun * WallRunUpwardsMovement;
-        movementDir_WallRun = movementDir_WallRun + stickyMovement;
+
         //our x z velocity are our momentum applied to our forward direction
-        movementDir_WallRun += faceOrientation.forward * ActSpeed;
+        movementDir_WallRun += directionAlongWall_OnWall * ActSpeed;
 
         lerpVelocity_WallRun = Vector3.Lerp(Rigid.velocity, movementDir_WallRun, WallRunSpeedAcceleration * D);
         Rigid.velocity = lerpVelocity_WallRun;
+
+
+
+        
+
     }
+
+
     ///////////////////////////////////////////////////////JumpUp/////////////////////////////////////////////////////////
     Vector3 velAmt;
     void JumpUp()
@@ -783,6 +747,8 @@ public class PlayerMovementv3 : MonoBehaviour
             SetInAir();
         }
     }
+
+
     ///////////////////////////////////////////////////////HandleFOV/////////////////////////////////////////////////////////
     //increase our fov at high speed and reduce it at low speed
     void HandleFov(float D)
@@ -797,6 +763,8 @@ public class PlayerMovementv3 : MonoBehaviour
         //Debug.Log(mag);
     }
 
+
+    ///////////////////////////////////////////////////////CheckSliding/////////////////////////////////////////////////////////
     private bool CheckSliding()
     {
         //get our velocity magniture
@@ -817,28 +785,47 @@ public class PlayerMovementv3 : MonoBehaviour
         }
 
     }
+
+
     ///////////////////////////////////////////////////////SlideSelf/////////////////////////////////////////////////////////
     //slide our character forwards
-    Vector3 slideDir;
+    Vector3 startSpeed;
     void SlideSelf()
     {
+        Debug.Log("Doing sliding...");
 
         //reduce our speed
-        ActSpeed = SlideSpeedLimit;
+        //ActSpeed = SlideSpeedLimit;
 
         //remove any control from player 
         AdjustmentAmt = 0;
 
-        //find direction
-        slideDir = Rigid.velocity.normalized;
-        slideDir.y = 0;
 
-        //slide in direction
-        Rigid.AddForce(faceOrientation.forward * SlideAmt, ForceMode.Impulse);
+        // Main
+        
+        if (firstTime)
+        {
+          Rigid.velocity *= 2;
+            firstTime = false;
+        }
+
+        Vector3 lastSPD = new Vector3(0, 0, 0);
+        Rigid.velocity = Vector3.Lerp(Rigid.velocity, lastSPD, DeltaForFixed * 0.5f);
+
+
+     //   Debug.Log(Rigid.velocity);
+        if (Rigid.velocity == lastSPD)
+            firstTime = true;
+
+
+      
+
+        
 
         cam_crouchingSpeed = 2.5f;
 
     }
+
 
     ///////////////////////////////////////////////////////SlideBlock/////////////////////////////////////////////////////////
     IEnumerator SlideBlock()
@@ -849,27 +836,9 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
     }
-    ///////////////////////////////////////////////////////CheckWallForJumping/////////////////////////////////////////////////////////
-    void CheckWallForJump()
-    {
-        leftWallCheck = Physics.Raycast(transform.position, -faceOrientation.right, out leftWallHit, wallCheckDistance, wallLayers);
 
 
-        rightWallCheck = Physics.Raycast(transform.position, faceOrientation.right, out rightWallHit, wallCheckDistance, wallLayers);
-
-
-
-        if (leftWallCheck && rightWallCheck)
-        {
-            Debug.Log("both");
-
-
-        }
-
-        
-    }
     ///////////////////////////////////////////////////////OnDrawGizmosSelected/////////////////////////////////////////////////////////
-    
     void OnDrawGizmosSelected()
     {
         //Wall check
@@ -890,8 +859,8 @@ public class PlayerMovementv3 : MonoBehaviour
         {
             Debug.DrawRay(testray.point, testray.normal, Color.green);
             //T‰ss‰ tapauksessa oikea siuunta sein‰‰ pitkin: 
-            Vector3 direction12 = Vector3.ProjectOnPlane(faceOrientation.forward, testray.normal);
-            Debug.DrawRay(testray.point, direction12, Color.blue);
+            Vector3 directionAlongWall_OnGround = Vector3.ProjectOnPlane(faceOrientation.forward, testray.normal);
+            Debug.DrawRay(testray.point, directionAlongWall_OnGround, Color.blue);
 
 
         }
@@ -899,13 +868,15 @@ public class PlayerMovementv3 : MonoBehaviour
         */
 
         //Gizmos.DrawSphere(transform.position, 5f, faceOrientation.forward, 2f);
-       // Gizmos.color = Color.black;
-       // Gizmos.DrawSphere(playerPos13, 1f);
+        // Gizmos.color = Color.black;
+        // Gizmos.DrawSphere(playerPos13, 1f);
 
         //Gizmos.color = Color.magenta;
         //Gizmos.DrawSphere(playerPos13, faceOrientation.forward, 0.7f);
 
     }
+
+
     ///////////////////////////////////////////////////////CameraTilt/////////////////////////////////////////////////////////
     /// <summary>
     /// Rotates our comera when running in walls. The Rotation depends on which side of the wall is from the player.
@@ -931,57 +902,135 @@ public class PlayerMovementv3 : MonoBehaviour
 
     }
 
-    
-    Vector3 hitPointLocal; //RayCastHit Position from Player's perspective. 
 
-
-
-    bool onTheRight = false;
-    bool onTheLeft = false;
-    bool inFront = false;
-    bool behind = false;
+    ///////////////////////////////////////////////////////CheckPlayerVertical/////////////////////////////////////////////////////////
+    Vector3 hitPointLocal; //RayCastHit Position from Player's perspective.
     /// <summary>
-    /// Checks whether wall is on player's right or left. (Used for PresenceOnPlane -feature)
+    /// Checks whether wall is in front of the player or behind. (Used for fixing MoveAlongWall -feature)
     /// </summary>
-    void CheckPlayerSides(Vector3 point)
+    bool CheckPlayerVertical(Vector3 point, float Ver, float Hor)
     {
-        onTheRight = false;
-        onTheLeft = false;
-        bool inFront = false;
-        bool behind = false;
-
-
         hitPointLocal = faceOrientation.transform.InverseTransformPoint(point);
 
-        if(hitPointLocal.x < 0) 
+        if (hitPointLocal.z > 0 && Ver >= 0)
         {
-            onTheLeft = true;
-            Debug.Log("LEFT");
-
-            return;
+            // In Front
+            return CheckPlayerHorizontal(hitPointLocal, Hor);
         }
 
-        else if (hitPointLocal.x > 0)
+        if (hitPointLocal.z < 0 && Ver <= 0)
         {
-            onTheRight = true;
-            Debug.Log("RIGHT");
-
+            // Behind
+            return CheckPlayerHorizontal(hitPointLocal, Hor);
         }
 
-        if(hitPointLocal.z > 0)
-        {
-            inFront = true;
-            Debug.Log("inFront");
-        }
-        else if(hitPointLocal.z < 0)
-        {
-            behind = true;
-            Debug.Log("Behind");
-        }
-
-
-
-       
+        return false;
 
     }
+
+
+    ///////////////////////////////////////////////////////CheckPlayerHorizontal/////////////////////////////////////////////////////////
+    /// <summary>
+    /// Checks whether wall is on player's right or left. (Used for fixing MoveAlongWall -feature)
+    /// </summary>
+    bool CheckPlayerHorizontal(Vector3 hitPointLocal, float Hor)
+    {
+
+        if (hitPointLocal.x < 0 && Hor > 0)
+        {
+            // Left
+            return false;
+        }
+
+        if (hitPointLocal.x > 0 && Hor < 0)
+        {
+            // Right
+            return false;
+        }
+        return true;
+    }
+
+
+    ///////////////////////////////////////////////////////CalculateWallDir/////////////////////////////////////////////////////////
+    Vector3 directionAlongWall_OnWall;
+    /// <summary>
+    /// Calculates direction for wallrunning. The direction is calculated using ProjectOnPlane method which gives the direction along the wall.
+    /// </summary>
+    /// <returns>Direction along thew all</returns>
+    void CalculateWallRunDir(RaycastHit wallRayHit)
+    {
+        directionAlongWall_OnWall = Vector3.ProjectOnPlane(faceOrientation.forward, wallRayHit.normal);
+        directionAlongWall_OnWall = directionAlongWall_OnWall.normalized;
+
+    }
+
+
+    ///////////////////////////////////////////////////////WallJump/////////////////////////////////////////////////////////
+    void WallJump()
+    {
+
+        if (Input.GetButton("Jump") && ActWallRunTime > 0.1f)
+        {
+
+            if (leftWallCheck)
+            {
+                // Jump from left wall
+                if (highJump)
+                {
+
+                    wallJumpDir = faceOrientation.forward * wallRunJumpForwardVel + transform.up * wallJumpHeight + playerCollision.wallRayHit.normal;
+                    Rigid.velocity = new Vector3(Rigid.velocity.x, 0, Rigid.velocity.z);
+                    Rigid.AddForce(wallJumpDir * wallJumpForce, ForceMode.Force);
+
+                    return;
+                }
+
+
+                if (!highJump)
+                {
+
+                    wallJumpDir = transform.up * wallJumpHeight + playerCollision.wallRayHit.normal;
+                    Rigid.velocity = new Vector3(Rigid.velocity.x, 0, Rigid.velocity.z);
+                    Rigid.AddForce(wallJumpDir * wallJumpForce, ForceMode.Force);
+
+                    return;
+                }
+
+            }
+            else if (rightWallCheck)
+            {
+                //Jump from right wall
+
+                if (highJump)
+                {
+                    wallJumpDir = faceOrientation.forward * wallRunJumpForwardVel + transform.up * wallJumpHeight + playerCollision.wallRayHit.normal;
+                    Rigid.velocity = new Vector3(Rigid.velocity.x, 0, Rigid.velocity.z);
+                    Rigid.AddForce(wallJumpDir * wallJumpForce, ForceMode.Force);
+
+                    return;
+                }
+
+
+                if (!highJump)
+                {
+
+                    wallJumpDir = transform.up * wallJumpHeight + playerCollision.wallRayHit.normal;
+                    Rigid.velocity = new Vector3(Rigid.velocity.x, 0, Rigid.velocity.z);
+                    Rigid.AddForce(wallJumpDir * wallJumpForce, ForceMode.Force);
+
+                    return;
+                }
+
+            }
+
+        }
+
+    }
+
+
+
+    //Other
+
+   
+
 }

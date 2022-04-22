@@ -8,7 +8,7 @@ public class GameManager : MonoBehaviour
     {
         Physics.gravity = new Vector3(0, -30, 0);
         Application.targetFrameRate = 360;
-        Cursor.lockState = CursorLockMode.Confined;
+        Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
    

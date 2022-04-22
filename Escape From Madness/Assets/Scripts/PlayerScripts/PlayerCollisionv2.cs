@@ -1,8 +1,12 @@
 using System;
 using UnityEngine;
 
+[RequireComponent(typeof(PlayerCollisionv2))]
 public class PlayerCollisionv2 : MonoBehaviour
 {
+    [Header("References")]
+    [SerializeField] PlayerMovementv3 playerMovement;
+
     [Header("RayCast Settings")]
     [Tooltip("Yellow")]
     public float FloorCheckRadius; //how large the detection for the floors is
@@ -37,16 +41,20 @@ public class PlayerCollisionv2 : MonoBehaviour
     [Tooltip("Y rotation of camera")]
     [SerializeField] private Transform faceOrientation; // Y rotation of camera
 
+    [Header("SlopeCheck")]
+    [SerializeField] float slopeLimit;
+    Vector3 slopeHitNormal;
+    RaycastHit slopeRayHit;
+
     //Additional variables for FLOORCHECK:
     Collider[] floorColliders;
     // Sphere position
     Vector3 point_floor;
     Vector3 point2_floor;
+    public bool onTheFloor = false;
 
     //Additional variables for WALLCHECK:
-    Collider[] wallColliders;
-    //Sphere position
-    Vector3 point_wall;
+    public RaycastHit wallRayHit;
 
     //Additional variables for RoofCheck:
     Collider[] roofColliders;
@@ -56,6 +64,9 @@ public class PlayerCollisionv2 : MonoBehaviour
     //Additional variables for LEDGECHECK:
     Vector3 rayPosition;
     RaycastHit hit;
+
+    //Additional variables for SLOPECHECK:
+    Vector3 rayPos_slopeCheck;
 
     //check if there is floor below us
     public bool CheckFloor(Vector3 Direction)
@@ -74,28 +85,29 @@ public class PlayerCollisionv2 : MonoBehaviour
         return false;
     }
     //check if there is a wall in the direction we are pressing
-    public bool CheckWall(Vector3 Direction)
+
+
+    public bool CheckWall()
     {
+        if (blockWallRun)
+            return false;
 
-        if (!blockWallRun)
+
+        if (Physics.Raycast(transform.position, -faceOrientation.right, out wallRayHit, 2, WallLayers))
         {
-
-            point_wall = transform.position + (Direction * frontOffset);
-            wallColliders = Physics.OverlapSphere(point_wall, WallCheckRadius, WallLayers);
-            if (wallColliders.Length > 0)
-            {
-                canCheck = false;
-
-                // Empty our array:
-                Array.Clear(wallColliders, 0, wallColliders.Length);
-
-                //we are on the ground
-                return true;
-            }
-
+            canCheck = false;
+            playerMovement.leftWallCheck = true;
+            //we are on the wall
+            return true;
         }
 
+        if (Physics.Raycast(transform.position, faceOrientation.right, out wallRayHit, 2, WallLayers))
+        {
+            playerMovement.rightWallCheck = true;
+            return true;
 
+
+        }
 
         return false;
     }
@@ -128,6 +140,38 @@ public class PlayerCollisionv2 : MonoBehaviour
 
         return Vector3.zero;
     }
+
+
+
+    /// <summary>
+    /// Calculate the angle of the floor on which we stand
+    /// </summary>
+    public bool CheckSlope()
+    {
+        rayPos_slopeCheck = new Vector3(transform.position.x, transform.position.y + 0.5f, transform.position.z);
+
+        //Debug.DrawRay(rayPos_slopeCheck, Vector3.down, Color.red);
+        if (Physics.Raycast(rayPos_slopeCheck, Vector3.down, out slopeRayHit, 1f, FloorLayers))
+        {
+            slopeHitNormal = slopeRayHit.normal;
+
+            return Vector3.Angle(slopeHitNormal, Vector3.up) > slopeLimit;
+        }
+        return false;
+    }
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Floor"))
+            onTheFloor = true;
+
+        Debug.Log("LAttialla");
+    }
+
+    private void OnCollisionExit(Collision collision)
+    {
+        onTheFloor = false;
+    }
+
 
     void OnDrawGizmosSelected()
     {
