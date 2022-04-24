@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.44657874, g: 0.49641258, b: 0.5748172, a: 1}
+  m_IndirectSpecularColor: {r: 0.44657898, g: 0.4964133, b: 0.5748178, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -1778,7 +1778,7 @@ MeshCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 659827309}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: de41e54e6ed07f048b3a434d9c751dec, type: 2}
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 4
@@ -3390,7 +3390,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 37.72, y: 21.91}
+  m_AnchoredPosition: {x: 37.72, y: 23.76}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!54 &1263301741
@@ -3461,7 +3461,7 @@ MonoBehaviour:
   cam_standingSpeed: 8
   cam_slidingSpeed: 12
   SlideAmt: 20
-  SlideSpeedLimit: 0
+  SlideSpeedLimit: 16
   SlideControl: 0.5
   canSlide: 1
   sliding: 0
@@ -3473,9 +3473,15 @@ MonoBehaviour:
   cam_WallFOV: 160
   cam_DefaultMaxFOV: 120
   cam_SlideFOV: 150
+  firstTime: 1
   normwalls:
     serializedVersion: 2
     m_Bits: 2048
+  dirOnTheSLope: {x: 0, y: 0, z: 0}
+  slopeSpeed_sliding: {x: 0, y: 0, z: 0}
+  slopeSpeed: 40
+  actSpeed_sliding: 0
+  speedLimit_sliding: 20
 --- !u!114 &1263301745
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3514,7 +3520,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 512
   faceOrientation: {fileID: 1045396322}
-  slopeLimit: 0
+  slopeLimit: 1
+  slopeHitNormal: {x: 0, y: 0, z: 0}
+  onSlope: 0
   onTheFloor: 0
 --- !u!1 &1274161299 stripped
 GameObject:

@@ -141,8 +141,8 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
 
-    bool firstTime = true;
-    
+    public bool firstTime = true;
+
 
     ////////////////////////////////////////////////////////////////Start////////////////////////////////////////////////////////////////////
     void Start()
@@ -174,7 +174,7 @@ public class PlayerMovementv3 : MonoBehaviour
         CameraTilt();
 
 
-        Debug.Log(playerCollision.CheckSlope());
+
 
         if (sliding && !CheckSliding())
         {
@@ -214,7 +214,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
         if (CurrentState == PlayerStates.Grounded)
         {
-           
+
 
             //if we press jump
             if (Input.GetButtonDown("Jump"))
@@ -384,29 +384,31 @@ public class PlayerMovementv3 : MonoBehaviour
 
             MovePlayer(horInputInFixed, verInputInFixed, DeltaForFixed);
 
-
+            
             //check for crouching 
             if (Input.GetButton("Crouching"))
             {
-                
+                Debug.Log("Crouching");
+
                 //start crouching
                 if (!Crouch)
                 {
                     StartCrouch();
                 }
 
-                if (ActSpeed > SlideSpeedLimit && playerCollision.onTheFloor)
+                //ActSpeed > SlideSpeedLimit && 
+                if (playerCollision.onTheFloor)
                 {
                     sliding = true;
                     SlideSelf();
-
+                   
                     StartCoroutine(SlideBlock());
                 }
 
             }
             else
             {
-              //  sliding = false;
+                //  sliding = false;
                 //stand up
                 bool check = playerCollision.CheckRoof(faceOrientation.up);
                 if (!check)
@@ -469,6 +471,11 @@ public class PlayerMovementv3 : MonoBehaviour
 
     }
 
+
+
+
+
+
     ////////////////////////////////////////////////////////////////LateUpdate////////////////////////////////////////////////////////////////////
     private void LateUpdate()
     {
@@ -503,16 +510,28 @@ public class PlayerMovementv3 : MonoBehaviour
             //slideDir.y = 0;
 
             //Rigid.velocity = slideDir * 4;
-            float Mag = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
-            ActSpeed = Mag * 5;
-            Debug.Log("Sliding");
+              float Mag = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
+              ActSpeed = Mag * 2;
+
+            if(false)
+            {
+                Debug.Log(Rigid.velocity);
+               Vector3 newVelocity = Rigid.velocity;
+                newVelocity.y = 0;  
+                Rigid.velocity = newVelocity * 1.2f;
+                Debug.Log("newVelocity");
+
+            }
+
+
+            // Pois y ja jos on trigger on ja sherecast on niin slide 
         }
         else
         {
 
-            float Mag = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
+          //  float Mag = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
             //Debug.Log(Mag);
-            ActSpeed = Mag;
+          //  ActSpeed = Mag; !!!
         }
     }
 
@@ -565,7 +584,7 @@ public class PlayerMovementv3 : MonoBehaviour
         leftWallCheck = false;
         currentMaxSpeed = maxSpeedOnGround;
 
-        
+
     }
 
 
@@ -607,13 +626,13 @@ public class PlayerMovementv3 : MonoBehaviour
         standCap.enabled = false;
         crouchCap.enabled = true;
         //ActSpeed > SlideSpeedLimit && canSlide
-     /*   if (true)
-        {
-            sliding = true;
-            SlideSelf();
-            
-            StartCoroutine(SlideBlock());
-        }*/
+        /*   if (true)
+           {
+               sliding = true;
+               SlideSelf();
+
+               StartCoroutine(SlideBlock());
+           }*/
     }
 
 
@@ -627,6 +646,10 @@ public class PlayerMovementv3 : MonoBehaviour
         standCap.enabled = true;
 
         firstTime = true;
+
+
+        actSpeed_sliding = 0.5f;
+
 
         cam_crouchingSpeed = 9f;
     }
@@ -645,7 +668,7 @@ public class PlayerMovementv3 : MonoBehaviour
         if (sliding)
             return;
 
-        Debug.Log("MovePlayer");
+        
 
         if ((Physics.SphereCast(faceOrientation.transform.position, 0.9f, faceOrientation.forward, out testray, 1f, normwalls) && CheckPlayerVertical(testray.point, Ver, Hor)) || Physics.SphereCast(faceOrientation.transform.position, 0.9f, -faceOrientation.forward, out testray, 1f, normwalls) && CheckPlayerVertical(testray.point, Ver, Hor))
         {
@@ -654,7 +677,7 @@ public class PlayerMovementv3 : MonoBehaviour
             directionAlongWall_OnGround = Vector3.ProjectOnPlane((faceOrientation.forward * Ver) + (faceOrientation.right * Hor), testray.normal);
 
             movementDirection = directionAlongWall_OnGround.normalized;
-            Debug.Log(movementDirection);
+            
         }
         else
         {
@@ -678,7 +701,7 @@ public class PlayerMovementv3 : MonoBehaviour
         lerpVelocityOfMovement = Vector3.Lerp(Rigid.velocity, movementDirection, Acel * D);
         Rigid.velocity = lerpVelocityOfMovement;
 
-        
+
 
     }
 
@@ -725,7 +748,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
 
-        
+
 
     }
 
@@ -789,7 +812,12 @@ public class PlayerMovementv3 : MonoBehaviour
 
     ///////////////////////////////////////////////////////SlideSelf/////////////////////////////////////////////////////////
     //slide our character forwards
-    Vector3 startSpeed;
+    public Vector3 dirOnTheSLope;
+    public Vector3 slopeSpeed_sliding;
+    public float slopeSpeed;
+    public float actSpeed_sliding = 0.5f;
+    public float speedLimit_sliding = 20;
+    
     void SlideSelf()
     {
         Debug.Log("Doing sliding...");
@@ -801,28 +829,40 @@ public class PlayerMovementv3 : MonoBehaviour
         AdjustmentAmt = 0;
 
 
-        // Main
-        
+ 
         if (firstTime)
         {
-          Rigid.velocity *= 2;
+            float velocityMag_sliding = new Vector3(Rigid.velocity.x, Rigid.velocity.y, Rigid.velocity.z).magnitude;
+            Debug.Log("Velocity: " + velocityMag_sliding);
+
+            if (velocityMag_sliding < speedLimit_sliding)
+                Rigid.velocity *= 2.2f;
+
+           // else
+                //Rigid.velocity *= 1.2f;
+            
             firstTime = false;
         }
 
-        Vector3 lastSPD = new Vector3(0, 0, 0);
-        Rigid.velocity = Vector3.Lerp(Rigid.velocity, lastSPD, DeltaForFixed * 0.5f);
+        // Set up target velocity for our sliding which is zero: 
+        Vector3 targetVelocity_sliding = new Vector3(0, 0, 0);
+
+        // In case we want to slide on slope, we will calculate special direction on the slope.
+     //   if (playerCollision.onSlope)
+           // targetVelocity_sliding = new Vector3(playerCollision.slopeHitNormal.x, -playerCollision.slopeHitNormal.y, playerCollision.slopeHitNormal.z) * slopeSpeed;
+
+        Vector3 velocityForSliding = Vector3.Lerp(Rigid.velocity, targetVelocity_sliding, DeltaForFixed * actSpeed_sliding);
+        Rigid.velocity = velocityForSliding;
 
 
-     //   Debug.Log(Rigid.velocity);
-        if (Rigid.velocity == lastSPD)
-            firstTime = true;
+       
+        // Debug.Log("Targetvelocity_sliding: " + targetVelocity_sliding);
 
-
-      
-
-        
+        //actSpeed_sliding += 0.5f;
 
         cam_crouchingSpeed = 2.5f;
+
+        // Debug.Log(actSpeed_sliding);
 
     }
 
@@ -1031,6 +1071,6 @@ public class PlayerMovementv3 : MonoBehaviour
 
     //Other
 
-   
+
 
 }
