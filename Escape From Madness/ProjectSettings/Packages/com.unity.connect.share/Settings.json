@@ -21,7 +21,7 @@
             {
                 "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089",
                 "key": "buildOutputDirList",
-                "value": "{\"m_Value\":\"C:/Users/s2001075/Documents/Unity-projects/Builds/WebGL Builds/EscapeFromMadness WebGL builds/WEBGLver1;;;;;;;;;\"}"
+                "value": "{\"m_Value\":\"C:/Users/s2001075/Documents/Unity-projects/Builds/WebGL Builds/EscapeFromMadness WebGL builds;C:/Users/s2001075/Documents/Unity-projects/Builds/WebGL Builds/EscapeFromMadness WebGL builds/WEBGLver1;;;;;;;;\"}"
             }
         ]
     }
