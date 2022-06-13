@@ -71,12 +71,12 @@ public class PlayerCollisionv2 : MonoBehaviour
 
     private void FixedUpdate()
     {
-       if (onTheFloor)
-        CheckSlope();
+        if (onTheFloor)
+            CheckSlope();
     }
 
 
-    //check if there is floor below us
+    //Check if there is a floor below us before landing. The actual confirmation is complete after Collisison.
     public bool CheckFloor(Vector3 Direction)
     {
         point_floor = transform.position + (Direction * bottomOffset);
@@ -92,9 +92,9 @@ public class PlayerCollisionv2 : MonoBehaviour
 
         return false;
     }
+
+
     //check if there is a wall in the direction we are pressing
-
-
     public bool CheckWall()
     {
         if (blockWallRun)
@@ -124,7 +124,7 @@ public class PlayerCollisionv2 : MonoBehaviour
     public bool CheckRoof(Vector3 Direction)
     {
         point_roof = transform.position + (Direction * upOffset);
-        roofColliders = Physics.OverlapSphere(point_roof, WallCheckRadius, RoofLayers);
+        roofColliders = Physics.OverlapSphere(point_roof, RoofCheckRadius, RoofLayers);
         if (roofColliders.Length > 0)
         {
             // Empty our array:
@@ -157,9 +157,9 @@ public class PlayerCollisionv2 : MonoBehaviour
     public void CheckSlope()
     {
 
-       
+
         rayPos_slopeCheck = new Vector3(transform.position.x, transform.position.y + 0.5f, transform.position.z);
-      
+
         if (!Physics.Raycast(rayPos_slopeCheck, Vector3.down, out slopeRayHit, 2f, FloorLayers)) // !!!! Eka 1f
             return;
 
@@ -168,21 +168,24 @@ public class PlayerCollisionv2 : MonoBehaviour
 
         if (Vector3.Angle(slopeHitNormal, Vector3.up) > slopeLimit)
         {
-            
+
             onSlope = true;
-         
 
-        } else onSlope = false;
 
-        
+        }
+        else onSlope = false;
+
+
 
     }
-    private void OnCollisionEnter(Collision collision)
+
+
+    private void OnCollisionStay(Collision collision)
     {
         if (collision.gameObject.CompareTag("Floor"))
             onTheFloor = true;
 
-      
+
     }
 
     private void OnCollisionExit(Collision collision)
@@ -194,7 +197,7 @@ public class PlayerCollisionv2 : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-       /* //floor check
+        //floor check
         Gizmos.color = Color.yellow;
         Vector3 Pos = transform.position + (-faceOrientation.up * bottomOffset);
         Gizmos.DrawSphere(Pos, FloorCheckRadius);
@@ -210,6 +213,6 @@ public class PlayerCollisionv2 : MonoBehaviour
         Gizmos.color = Color.cyan;
         Vector3 Pos4 = transform.position + (faceOrientation.forward * LedgeGrabForwardPos) + (faceOrientation.up * LedgeGrabUpwardsPos);
         Gizmos.DrawLine(Pos4, Pos4 + (-faceOrientation.up * LedgeGrabDistance));
-       */
+
     }
 }

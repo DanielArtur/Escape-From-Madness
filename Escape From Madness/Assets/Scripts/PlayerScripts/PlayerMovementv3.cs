@@ -39,6 +39,9 @@ public class PlayerMovementv3 : MonoBehaviour
 
     ////////////////////////////////////////////////////////////////Physics////////////////////////////////////////////////////////////////////
     [Header("Physics")]
+    [Tooltip("Current player velocioty magnitude")]
+    public float velocityMagnitude_InFixed;
+    public float velocityMagnitude_InUpdate;
     private float currentMaxSpeed; //how fast we run forward
     public float maxSpeedOnGround = 18;
     public float maxSpeedOnWalls = 24;
@@ -62,16 +65,23 @@ public class PlayerMovementv3 : MonoBehaviour
 
     ////////////////////////////////////////////////////////////////WallRunning////////////////////////////////////////////////////////////////////
     [Header("Wall Running")]
-    public float WallRunTime = 2f; //how long we can run on walls
-    private float ActWallRunTime = 0; //how long we are actually on a wall
-    public float TimeBeforeWallRun = 0.2f; //how long we have to be in the air before we can wallrun
-    public float WallRunUpwardsMovement = 2f; //how much we move up a wall when running on it (make this 0 to just slightly move down a wall we run on
-    public float WallRunSpeedAcceleration = 2f; //how quickly we build speed to run up walls
+    [Tooltip("how long we can run on walls")]
+    public float WallRunTime = 2f; //
+    [Tooltip("how long we are actually on a wall")]
+    private float ActWallRunTime = 0; //
+    [Tooltip("how long we have to be in the air before we can wallrun")]
+    public float TimeBeforeWallRun = 0.2f; //
+    [Tooltip("how much we move up a wall when running on it (make this 0 to just slightly move down a wall we run on)")]
+    public float WallRunUpwardsMovement = 2f; //
+    [Tooltip("how quickly we build speed to run up walls")]
+    public float WallRunSpeedAcceleration = 2f; //
 
 
     // Camera Tilt:
-    public float tilt;
+    public float tilt; // Camera rotation
+    [Tooltip("How much our camera rotates around the z-axis when running on wall")]
     [SerializeField] private float camTilt;
+    [Tooltip("How fust our camera tilt (rotation) changes")]
     [SerializeField] private float camTiltTime;
 
     ////////////////////////////////////////////////////////////////Wall Jumping////////////////////////////////////////////////////////////////////
@@ -91,8 +101,9 @@ public class PlayerMovementv3 : MonoBehaviour
 
     ////////////////////////////////////////////////////////////////Crouching////////////////////////////////////////////////////////////////////
     [Header("Crouching")]
+    [Tooltip("how fast we move when crouching")]
     public float CrouchSpeed = 10; //how fast we move when crouching
-    private bool Crouch;
+    public bool Crouching;
 
     // Colliders for crouching and standing
     [SerializeField] CapsuleCollider crouchCap; // Capsiule for crouching
@@ -104,24 +115,53 @@ public class PlayerMovementv3 : MonoBehaviour
     private Vector3 camTargetPos; // Camera target position according to the situation 
     private Vector3 defaultCamPos; // Camera standing/original position
 
-    [SerializeField] private float cam_crouchingSpeed; // How fast we crouch
-    [SerializeField] private float cam_standingSpeed; // How fast we go to stand
-    [SerializeField] private float cam_slidingSpeed; // How fast we go to sliding
+    [Tooltip("How fast we crouch")]
+    [SerializeField] private float cam_crouchingSpeed;
+    [Tooltip("How fast we go to stand")]
+    [SerializeField] private float cam_standingSpeed;
+    [Tooltip("How fast we go to sliding")]
+    [SerializeField] private float cam_slidingSpeed;
 
     private float cam_StepForStanding;
     private float cam_StepForCrouching;
     private float cam_StepForSliding;
+
     ////////////////////////////////////////////////////////////////Sliding////////////////////////////////////////////////////////////////////
     [Header("Sliding")]
+    [Tooltip("how far we slide when pressing crouch")]
     public float SlideAmt; //how far we slide when pressing crouch
-    public float SlideSpeedLimit; //how fast we have to be traveling before a crouch will trigger a slide
+    [Tooltip("how fast we have to be traveling before a crouch will trigger a slide")]
+    public float SlideSpeedLimit; //how fast we have to be traveling before a crouch will trigger a slide!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    [Tooltip("how much we adjust to our slide speed and regain player control")]
     public float SlideControl; //how much we adjust to our slide speed and regain player control
-    public bool canSlide = true;
+
+    //For debug
+    // public bool canSlide = true;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     public bool sliding = false;
     public bool wasSliding = false;
 
+    [Tooltip("How much control we have while sliding")]
     [SerializeField] float control_Sliding = 10; // How much control we have while sliding
-    bool canStartSliding = false;
+
+    public bool canSlide = false;
+    public bool firstTime = true; // At the beginning of the sliding, we will receive boost. (velocity boost) 
+
+    //SpeedLimits:
+    [Tooltip("Speed above this value will result in no velocity boost")]
+    [SerializeField] float maxSpeedLimit_sliding = 20; // Speed above this value will result in no velocity boost.
+
+    [Tooltip("Speed below this value will result in velocity boost")]
+    [SerializeField] float boostSpeedLimit_sliding = 12; // Speed below this value will result in velocity boost.
+
+    //Velocity boost for sliding:
+    [Tooltip("By default we multiply our velocity by this value when sliding")]
+    [Range(0.0f, 5.0f)]
+    [SerializeField] float defaultBoost = 2.2f; // By default we multiply our velocity by this value when sliding.
+
+    [Tooltip("If our velocity is low enought, we will get i´ncreased boost in velocity")]
+    [Range(0.0f, 5.0f)]
+    [SerializeField] float increasedBoost = 2.6f; // If our velocity is low enought, we will get i´ncreased boost in velocity. 
+
 
     ////////////////////////////////////////////////////////////////WallGrabbing////////////////////////////////////////////////////////////////////
     [Header("WallGrabbing")]
@@ -144,9 +184,9 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
 
-    public bool firstTime = true;
 
-    public bool candebug = true;
+
+
     ////////////////////////////////////////////////////////////////Start////////////////////////////////////////////////////////////////////
     void Start()
     {
@@ -165,13 +205,17 @@ public class PlayerMovementv3 : MonoBehaviour
 
     ////////////////////////////////////////////////////////////////Update////////////////////////////////////////////////////////////////////
 
-    bool sloperun = false;
+
     void Update()
     {
         DeltaForUpdate = Time.deltaTime;
 
         XMoveInUpdate = Input.GetAxis("Horizontal");
         YMoveInUpdate = Input.GetAxis("Vertical");
+
+        //Calculate our current velocity magnitude:
+        velocityMagnitude_InUpdate = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
+
 
         HandleFov(DeltaForUpdate);
 
@@ -183,7 +227,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
         if (sliding && !CheckSlidingForFOV())
         {
-            Debug.Log("SLide");
+
             cam_StepForSliding = cam_slidingSpeed * Time.deltaTime;
             camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos + Vector3.down * cam_SlideHeight, cam_StepForSliding);
             cam_CurrentMaxFov = cam_SlideFOV;
@@ -195,11 +239,11 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
 
-            if (Crouch)
+            if (Crouching)
             {
                 cam_StepForCrouching = cam_crouchingSpeed * Time.deltaTime;
                 camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos + Vector3.down * cam_CrouchHeight, cam_StepForCrouching);
-                Debug.Log("Crouch");
+                Debug.Log("Crouching");
 
             }
             else
@@ -370,6 +414,10 @@ public class PlayerMovementv3 : MonoBehaviour
         verInputInFixed = Input.GetAxis("Vertical");
 
 
+        //Calculate our current velocity magnitude:
+        velocityMagnitude_InFixed = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
+
+
         //*********************************************Grounded_Fixed***************************************************//
         if (CurrentState == PlayerStates.Grounded)
         {
@@ -384,66 +432,44 @@ public class PlayerMovementv3 : MonoBehaviour
             //get the amount of speed, based on if we press forwards or backwards
             targetSpd = Mathf.Lerp(BackwardsSpeed, currentMaxSpeed, verInputInFixed); //using the vertical input as a lerp from if forward is being pressed
 
-            //if we are crouching, our target speed is our crouch speed
-            if (Crouch)
+
+            //If we are crouching, our target speed is our crouch speed
+            if (Crouching)
                 targetSpd = CrouchSpeed;
 
-
-
-            if (!sliding && !cantMove)
+            //Dont call MovePlayer and LerpSpeed if we want to slide. (This will prevent random bugs)
+            if (!cantMove)
             {
                 LerpSpeed(InputMagnitude, DeltaForFixed, targetSpd);
                 MovePlayer(horInputInFixed, verInputInFixed, DeltaForFixed);
 
             }
 
-            //check for crouching 
-            if (Input.GetButton("Crouching"))
-            {
 
-
-                //start crouching
-                if (!Crouch)
-                    StartCrouch();
-
-
-
-                if (playerCollision.onTheFloor && ActSpeed > SlideSpeedLimit || landOnSloupWithSliding && playerCollision.onTheFloor)
-                {
-                    canStartSliding = true;
-
-                    Debug.Log("Proceed");
-                    //StartCoroutine(SlideBlock());
-                }
-                //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                if (canStartSliding)
-                {
-                    sliding = true;
-                    SlideSelf(horInputInFixed);
-
-
-
-                }
-
-
-            }
+            //Check for crouching and sliding
+            if (Input.GetButton("Crouch"))
+                ActionOnGround();      
             else
             {
+                StopActionOnGround();
 
-                //stand up
-                bool check = playerCollision.CheckRoof(faceOrientation.up);
-                if (!check)
-                {
-                    StopCrouching();
+                
 
-                }
+
+               
+
             }
+
+
+
 
             //add to our player adjustment
             if (AdjustmentAmt < 1)
                 AdjustmentAmt += DeltaForFixed * SlideControl;
             else
                 AdjustmentAmt = 1;
+
+
 
             //check for the ground 
             bool Grounded = playerCollision.CheckFloor(-faceOrientation.up);
@@ -464,7 +490,6 @@ public class PlayerMovementv3 : MonoBehaviour
                 //we are on the ground to remove any increase in the air timer
                 InAirTimer = 0;
             }
-
 
 
 
@@ -531,7 +556,8 @@ public class PlayerMovementv3 : MonoBehaviour
     {
         // Debug.Log(Rigid.velocity.y);
 
-        if (!Input.GetButton("Crouching"))
+
+        if (!Input.GetButton("Crouch"))
         {
 
             // Increase speed (ACTSPEED) if we use input while landing:
@@ -552,11 +578,12 @@ public class PlayerMovementv3 : MonoBehaviour
             return;
         }
 
-        //Sliding on slope after landing
-        else if (Rigid.velocity.y < -5)
+
+        //Sliding right after landing:
+        else //if (Rigid.velocity.y < -5)
         {
-            cantMove = true;
-            sloperun = true;
+            StartSliding();
+
 
             // Check that we are landing on slope:
             playerCollision.CheckSlope();
@@ -574,11 +601,58 @@ public class PlayerMovementv3 : MonoBehaviour
             VelocityYBeforeLanding = Rigid.velocity.y;
 
 
-            // canStartSliding = true;
+
 
             return;
         }
 
+
+    }
+
+    ///////////////////////////////////////////////////////ActionOnGround/////////////////////////////////////////////////////////
+    ///Determines the proper action when pressing C. (SLIDE or CROUCH)
+    void ActionOnGround()
+    {
+      
+        if (playerCollision.onTheFloor && !canSlide)
+        {
+           
+            if (velocityMagnitude_InFixed > SlideSpeedLimit || landOnSloupWithSliding)
+                StartSliding();
+
+            else if (!Crouching)
+                StartCrouching();
+
+        }
+
+        if (canSlide)
+            Slide(horInputInFixed);
+
+    }
+
+    ///////////////////////////////////////////////////////StopActionOnGround/////////////////////////////////////////////////////////
+    ///Cancels sliding and crouching if C isnt pressed
+    void StopActionOnGround()
+    {
+        //Stand up:
+        bool check = playerCollision.CheckRoof(faceOrientation.up);
+
+        if (check && canSlide)
+        {
+            StopSliding();
+            StartCrouching();
+
+            return;
+        }
+
+        if (canSlide)
+            StopSliding();
+
+        if(!check)
+        StopCrouching();
+
+
+        
 
     }
 
@@ -666,9 +740,9 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
     ///////////////////////////////////////////////////////StartCrouch/////////////////////////////////////////////////////////
-    void StartCrouch()
+    void StartCrouching()
     {
-        Crouch = true;
+        Crouching = true;
 
         standCap.enabled = false;
         crouchCap.enabled = true;
@@ -679,26 +753,44 @@ public class PlayerMovementv3 : MonoBehaviour
     ///////////////////////////////////////////////////////StopCrouching/////////////////////////////////////////////////////////
     void StopCrouching()
     {
-        sliding = false;
-        sloperun = false;
-        Crouch = false;
+
+        Crouching = false;
 
         crouchCap.enabled = false;
         standCap.enabled = true;
 
         firstTime = true;
 
-        canStartSliding = false;
+        canSlide = false;
         landWithBoost = false;
 
-        cantMove = false;
+
 
         landOnSloupWithSliding = false;
 
         cam_crouchingSpeed = 9f;
     }
 
+    void StopSliding()
+    {
+        sliding = false;
 
+        crouchCap.enabled = false;
+        standCap.enabled = true;
+
+        firstTime = true;
+
+        canSlide = false;
+
+        landWithBoost = false;
+
+        cantMove = false;
+
+        landOnSloupWithSliding = false;
+
+
+        Debug.Log("StopSliding");
+    }
     ///////////////////////////////////////////////////////MovePlayer/////////////////////////////////////////////////////////
     Vector3 lerpVelocityOfMovement;
     Vector3 movementDirection;
@@ -710,7 +802,7 @@ public class PlayerMovementv3 : MonoBehaviour
     void MovePlayer(float Hor, float Ver, float D)
     {
 
-
+        Debug.Log("MovePlayer");
         if ((Physics.SphereCast(faceOrientation.transform.position, 0.9f, faceOrientation.forward, out testray, 1f, normwalls) && CheckPlayerVertical(testray.point, Ver, Hor)) || Physics.SphereCast(faceOrientation.transform.position, 0.9f, -faceOrientation.forward, out testray, 1f, normwalls) && CheckPlayerVertical(testray.point, Ver, Hor))
         {
 
@@ -817,10 +909,8 @@ public class PlayerMovementv3 : MonoBehaviour
     //increase our fov at high speed and reduce it at low speed
     void HandleFov(float D)
     {
-        //get our velocity magnitude
-        float mag = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
         //get appropritate fov 
-        float LerpAmt = mag / FOVSpeed;
+        float LerpAmt = velocityMagnitude_InUpdate / FOVSpeed;
         float FieldView = Mathf.Lerp(cam_defaultFOV, cam_CurrentMaxFov, LerpAmt);
         //ease into this fov
         Cam.fieldOfView = Mathf.Lerp(Cam.fieldOfView, FieldView, 4 * D);
@@ -831,27 +921,44 @@ public class PlayerMovementv3 : MonoBehaviour
     ///////////////////////////////////////////////////////CheckSliding/////////////////////////////////////////////////////////
     private bool CheckSlidingForFOV()
     {
-        //get our velocity magniture
-        float mag = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
 
-        if (mag < 5)
+        if (velocityMagnitude_InUpdate < 5)
         {
-            sliding = false;
+          // sliding = false;
+            StopSliding();
             cam_CurrentMaxFov = cam_DefaultMaxFOV;
             return true;
-
-
         }
+
         else
-        {
             return false;
 
-        }
+
 
     }
 
+    ///////////////////////////////////////////////////////StartSliding/////////////////////////////////////////////////////////
+    /// <summary>
+    /// Make proper changes for sliding 
+    /// </summary>
+    void StartSliding()
+    {
+        cantMove = true;
 
-    ///////////////////////////////////////////////////////SlideSelf/////////////////////////////////////////////////////////
+        Debug.Log("StartSliding");
+
+        //Shrink our capsule collider:
+        standCap.enabled = false;
+        crouchCap.enabled = true;
+
+        canSlide = true;
+
+        sliding = true;
+        //StartCoroutine(SlideBlock());
+    }
+
+
+    ///////////////////////////////////////////////////////Slide/////////////////////////////////////////////////////////
     //slide our character forwards
     public Vector3 dirOnTheSLope;
     public Vector3 slopeSpeed_sliding;
@@ -867,9 +974,9 @@ public class PlayerMovementv3 : MonoBehaviour
     public float VelocityYBeforeLanding;
 
 
-
+    Vector3 velocityForSliding;
     Vector3 targetVelocity_sliding;
-    void SlideSelf(float hor)
+    void Slide(float hor)
     {
         //remove any control from player 
         AdjustmentAmt = 0;
@@ -913,7 +1020,7 @@ public class PlayerMovementv3 : MonoBehaviour
         targetVelocity_sliding += faceOrientation.right * (hor * control_Sliding);
 
         // Lerp our sliding velocity to targetspeed. (Target speed is slopeSpeed (more than 0) if we slide on slope)
-        Vector3 velocityForSliding = Vector3.Lerp(Rigid.velocity, targetVelocity_sliding, DeltaForFixed * currentActSpeed_sliding);
+        velocityForSliding = Vector3.Lerp(Rigid.velocity, targetVelocity_sliding, DeltaForFixed * currentActSpeed_sliding);
         Rigid.velocity = velocityForSliding;
 
 
@@ -929,14 +1036,14 @@ public class PlayerMovementv3 : MonoBehaviour
     void PushPlayerIntoSliding()
     {
 
-        // Calculate current velocity magnitude: 
-        float velocityMag_sliding = new Vector3(Rigid.velocity.x, Rigid.velocity.y, Rigid.velocity.z).magnitude;
-        // Debug.Log("velocityMag_sliding: " + velocityMag_sliding);
+
+
+        //  Debug.Log("velocityMag_sliding: " + velocityMagnitude);
 
 
 
         // If we move too fast, we wont get extra velocity for sliding.
-        if (velocityMag_sliding > 20)
+        if (velocityMagnitude_InFixed > 20)
             return;
 
 
@@ -944,7 +1051,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
         //If we move too slow, we will get even more extra velocity. (It is for slow "land and slide" scenarios)
-        if (velocityMag_sliding < 12 && landWithBoost)
+        if (velocityMagnitude_InFixed < 12 && landWithBoost)
         {
             Rigid.velocity *= 2.6f;
             Debug.Log("more boost");
@@ -971,7 +1078,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
 
-        Debug.Log("skip");
+        
         Rigid.velocity *= 2.2f;
     }
 
@@ -979,9 +1086,9 @@ public class PlayerMovementv3 : MonoBehaviour
     ///////////////////////////////////////////////////////SlideBlock/////////////////////////////////////////////////////////
     IEnumerator SlideBlock()
     {
-        canSlide = false;
+        //   canSlide = false;
         yield return new WaitForSeconds(1.5f);
-        canSlide = true;
+        //canSlide = true;
 
 
     }
@@ -1004,27 +1111,28 @@ public class PlayerMovementv3 : MonoBehaviour
 
     ///////////////////////////////////////////////////////CameraTilt/////////////////////////////////////////////////////////
     /// <summary>
-    /// Rotates our comera when running in walls. The Rotation depends on which side of the wall is from the player.
+    /// Rotates our camera when running on walls. The Rotation depends on which side of the wall is from the player.
     /// </summary>
     private void CameraTilt()
     {
         if (leftWallCheck)
-        {
-
             tilt = Mathf.Lerp(tilt, -camTilt, camTiltTime * Time.deltaTime);
-        }
+
+
         else if (rightWallCheck)
-        {
             tilt = Mathf.Lerp(tilt, camTilt, camTiltTime * Time.deltaTime);
 
-        }
+
         else if (tilt != 0)
         {
-
             tilt = Mathf.Lerp(tilt, 0, camTiltTime * Time.deltaTime);
+
+            //Round the camera tilt to zero:
+            if (tilt < 0 && tilt > -0.05f)
+                tilt = 0;
+            else if (tilt > 0 && tilt < 0.05f)
+                tilt = 0;
         }
-
-
     }
 
 

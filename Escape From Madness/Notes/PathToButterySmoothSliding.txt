@@ -1,0 +1,20 @@
+Painetaan C
+= Halutaan slidaa.
+=> Pitää colliderin koskea maahan ja velocityn olla suurempi kuin slideSpeedLimit.
+
+==> Saatiin lupa slaidata:
+= canStartSliding = tru eli voidaan aloittaa slaidaus...
+=> >Pienennetään collideri
+
+Nyt ollaan laillisesti sliding stagessa kyykyssä valmiina saamaan boostia...
+
+Meanwhile in other code....
+
+Start sliding:
+
+= Aloitetaan
+=> canStartSlidign antaa luvan slidata ja ajaa SlideSelf()
+==> sliding = true eli voidaan muuttaa kameran positionia y-akselilla ja oistaa käytösät moveplayer sekä lerpspeed
+===> Lisäksi: Kasvattaa FOV
+====> 
+ 
