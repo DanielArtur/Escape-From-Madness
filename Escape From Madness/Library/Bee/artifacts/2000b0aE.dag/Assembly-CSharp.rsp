@@ -101,7 +101,6 @@
 -define:CSHARP_7_OR_LATER
 -define:CSHARP_7_3_OR_NEWER
 -r:"Assets/Plugins/QFSW/Quantum Console/Source/Extras/exec/CSharpCompiler/Plugins/mcs.dll"
--r:"D:/Projects/Escape From Madness/Escape From Madness/Library/PackageCache/com.unity.nuget.newtonsoft-json@3.0.2/Runtime/Newtonsoft.Json.dll"
 -r:"D:/Unity/Unity Editors/2021.3.4f1/Editor/Data/Managed/UnityEngine/UnityEditor.CoreModule.dll"
 -r:"D:/Unity/Unity Editors/2021.3.4f1/Editor/Data/Managed/UnityEngine/UnityEditor.DeviceSimulatorModule.dll"
 -r:"D:/Unity/Unity Editors/2021.3.4f1/Editor/Data/Managed/UnityEngine/UnityEditor.DiagnosticsModule.dll"
@@ -314,12 +313,8 @@
 -r:"Library/Bee/artifacts/2000b0aE.dag/QFSW.QC.UI.ref.dll"
 -r:"Library/Bee/artifacts/2000b0aE.dag/Unity.EditorCoroutines.Editor.ref.dll"
 -r:"Library/Bee/artifacts/2000b0aE.dag/Unity.InternalAPIEditorBridgeDev.001.ref.dll"
--r:"Library/Bee/artifacts/2000b0aE.dag/Unity.PlasticSCM.Editor.ref.dll"
 -r:"Library/Bee/artifacts/2000b0aE.dag/Unity.Play.Publisher.Editor.ref.dll"
 -r:"Library/Bee/artifacts/2000b0aE.dag/Unity.Rider.Editor.ref.dll"
--r:"Library/Bee/artifacts/2000b0aE.dag/Unity.Services.Core.Analytics.ref.dll"
--r:"Library/Bee/artifacts/2000b0aE.dag/Unity.Services.Core.Environments.ref.dll"
--r:"Library/Bee/artifacts/2000b0aE.dag/Unity.Services.Core.ref.dll"
 -r:"Library/Bee/artifacts/2000b0aE.dag/Unity.TextMeshPro.Editor.ref.dll"
 -r:"Library/Bee/artifacts/2000b0aE.dag/Unity.TextMeshPro.ref.dll"
 -r:"Library/Bee/artifacts/2000b0aE.dag/Unity.Timeline.Editor.ref.dll"
@@ -337,6 +332,7 @@
 "Assets/Scripts/PlayerScripts/other/PlayerCamera.cs"
 "Assets/Scripts/PlayerScripts/PlayerCollisionv2.cs"
 "Assets/Scripts/PlayerScripts/PlayerMovementv3.cs"
+"Assets/Scripts/PlayerScripts/StickToFloor.cs"
 "Assets/Scripts/PlayerScripts/wallSlideCollCheck.cs"
 "Assets/TextMesh Pro/Examples & Extras/Scripts/Benchmark01.cs"
 "Assets/TextMesh Pro/Examples & Extras/Scripts/Benchmark01_UGUI.cs"

@@ -4,8 +4,11 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerCollisionv2))]
 public class PlayerCollisionv2 : MonoBehaviour
 {
+    public static PlayerCollisionv2 Instance { get; private set; }
+
     [Header("References")]
     [SerializeField] PlayerMovementv3 playerMovement;
+    [SerializeField] StickToFloor stickToFloor;
 
     [Header("RayCast Settings")]
     [Tooltip("Yellow")]
@@ -53,6 +56,8 @@ public class PlayerCollisionv2 : MonoBehaviour
     Vector3 point_floor;
     Vector3 point2_floor;
     public bool onTheFloor = false;
+    public bool wasOnSlope = false;
+
 
     //Additional variables for WALLCHECK:
     public RaycastHit wallRayHit;
@@ -69,10 +74,26 @@ public class PlayerCollisionv2 : MonoBehaviour
     //Additional variables for SLOPECHECK:
     Vector3 rayPos_slopeCheck;
 
+
+    //Other
+    public int stepSinceLastGrounded;
+    bool exitCollision = false;
+
+    private void Awake()
+    {
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
+    }
+
     private void FixedUpdate()
     {
         if (onTheFloor)
             CheckSlope();
+
+        stepSinceLastGrounded++;
+
     }
 
 
@@ -160,7 +181,7 @@ public class PlayerCollisionv2 : MonoBehaviour
 
         rayPos_slopeCheck = new Vector3(transform.position.x, transform.position.y + 0.5f, transform.position.z);
 
-        if (!Physics.Raycast(rayPos_slopeCheck, Vector3.down, out slopeRayHit, 2f, FloorLayers)) // !!!! Eka 1f
+        if (!Physics.Raycast(rayPos_slopeCheck, Vector3.down, out slopeRayHit, 2f, FloorLayers))
             return;
 
 
@@ -169,8 +190,11 @@ public class PlayerCollisionv2 : MonoBehaviour
         if (Vector3.Angle(slopeHitNormal, Vector3.up) > slopeLimit)
         {
 
-            onSlope = true;
 
+            wasOnSlope = true;
+
+
+            onSlope = true;
 
         }
         else onSlope = false;
@@ -183,16 +207,35 @@ public class PlayerCollisionv2 : MonoBehaviour
     private void OnCollisionStay(Collision collision)
     {
         if (collision.gameObject.CompareTag("Floor"))
+        {
             onTheFloor = true;
+            
+
+            stepSinceLastGrounded = 0;
 
 
+           
+
+
+
+        }
+
+      
     }
 
     private void OnCollisionExit(Collision collision)
     {
+
+        stickToFloor.CheckForStickyMovement(wasOnSlope);
+        wasOnSlope = false;
+
         onTheFloor = false;
-        
+
+     
+
+        exitCollision = true;
     }
+
 
 
     void OnDrawGizmosSelected()
@@ -202,9 +245,9 @@ public class PlayerCollisionv2 : MonoBehaviour
         Vector3 Pos = transform.position + (-faceOrientation.up * bottomOffset);
         Gizmos.DrawSphere(Pos, FloorCheckRadius);
         //wall check
-        Gizmos.color = Color.red;
-        Vector3 Pos2 = transform.position + (faceOrientation.forward * frontOffset);
-        Gizmos.DrawSphere(Pos2, WallCheckRadius);
+        //   Gizmos.color = Color.red;
+        //  Vector3 Pos2 = transform.position + (faceOrientation.forward * frontOffset);
+        //Gizmos.DrawSphere(Pos2, WallCheckRadius);
         //roof check
         Gizmos.color = Color.green;
         Vector3 Pos3 = transform.position + (faceOrientation.up * upOffset);

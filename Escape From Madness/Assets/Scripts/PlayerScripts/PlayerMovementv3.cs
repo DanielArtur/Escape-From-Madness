@@ -27,12 +27,15 @@ public class PlayerMovementv3 : MonoBehaviour
     float DeltaForFixed;
 
     ////////////////////////////////////////////////////////////////Refrences////////////////////////////////////////////////////////////////////
-    [Header("References")]
+    [Header("Scripts")]
     [SerializeField] private PlayerCollisionv2 playerCollision;
+    [SerializeField] StickToFloor stickToFloor;
+
+    [Header("Other References")]
     [SerializeField] private Rigidbody Rigid;
-    // [SerializeField] private Animator Anim;
     [SerializeField] private Transform faceOrientation;
     public Camera Cam; //what will function as our players head to tilt up and down (this is a pivot point_floor in our model that the cameras are children of
+
     [Tooltip("Walls that can be detected by rightWallCheck and leftWallCheck rays")]
     public LayerMask wallLayers; // Walls that can be detected by rightWallCheck and leftWallCheck rays
 
@@ -54,11 +57,16 @@ public class PlayerMovementv3 : MonoBehaviour
     public float Decceleration; //how fast we slow down
     public float DirectionControl = 8; //how much control we have over changing direction
     public PlayerStates CurrentState; //the current state the player is in
+
     private float InAirTimer; //how long we are in the air for (this is for use when wall running or falling off the ground
+    public float previousInAirTimer; //InAirTimer value before resetting
+
+    public bool wasActivated = false;
+
     private float OnGroundTimer;
     private float AdjustmentAmt; //the amount added to our player acceleration, this is used for adjusting to new speeds such as when we slide
 
-
+    private float yVelBeforeLanding; // Y velocity before landing
     ////////////////////////////////////////////////////////////////Jumping////////////////////////////////////////////////////////////////////
     [Header("Jumping")]
     public float JumpHeight; //how high we jump
@@ -103,28 +111,43 @@ public class PlayerMovementv3 : MonoBehaviour
     [Header("Crouching")]
     [Tooltip("how fast we move when crouching")]
     public float CrouchSpeed = 10; //how fast we move when crouching
-    public bool Crouching;
+    public bool Crouching = false;
 
     // Colliders for crouching and standing
     [SerializeField] CapsuleCollider crouchCap; // Capsiule for crouching
     [SerializeField] CapsuleCollider standCap; // Capsule for standing
 
-    [SerializeField] private float cam_CrouchHeight; // How low the ca,era goes when crouching
-    [SerializeField] private float cam_SlideHeight; // How low the ca,era goes when sliding
+    [SerializeField] private float cam_CrouchHeight; // How low the caera goes when crouching
+    [SerializeField] private float cam_SlideHeight; // How low the caera goes when sliding
 
     private Vector3 camTargetPos; // Camera target position according to the situation 
     private Vector3 defaultCamPos; // Camera standing/original position
 
-    [Tooltip("How fast we crouch")]
-    [SerializeField] private float cam_crouchingSpeed;
+
+    public float cam_currentCrouchingSpeed; // Current cam speed for crouching
+    public float cam_currentSlideSpeed; // Current cam speed for crouching
+
+
+    [Tooltip("How fast we crouch at the moment")]
+    [SerializeField] private float cam_defaultCrouchingSpeed = 9;
     [Tooltip("How fast we go to stand")]
     [SerializeField] private float cam_standingSpeed;
     [Tooltip("How fast we go to sliding")]
-    [SerializeField] private float cam_slidingSpeed;
+    [SerializeField] private float cam_defaultSlidingSpeed = 12;
+    [Tooltip("How fast we go to sliding when landing and having a high Y velocity")]
+    [SerializeField] private float cam_landSlidingSpeed = 26;
+    [Tooltip("How fast we stand to crouch height right after sliding")]
+    [SerializeField] private float cam_exitSlidingSpeed = 2.5f;
 
-    private float cam_StepForStanding;
-    private float cam_StepForCrouching;
-    private float cam_StepForSliding;
+    //0,53846153846153846154
+    private float cam_lowerLandSlidingSpeed;
+
+    [Tooltip("Y velocity above this value will result in faster crouch speed")]
+    [SerializeField] float maxYVelocity;
+
+    //These are technical variables. (Ignore)
+    private float camStepSpeed;
+
 
     ////////////////////////////////////////////////////////////////Sliding////////////////////////////////////////////////////////////////////
     [Header("Sliding")]
@@ -134,17 +157,35 @@ public class PlayerMovementv3 : MonoBehaviour
     public float SlideSpeedLimit; //how fast we have to be traveling before a crouch will trigger a slide!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     [Tooltip("how much we adjust to our slide speed and regain player control")]
     public float SlideControl; //how much we adjust to our slide speed and regain player control
+    [Tooltip("How long it should take to be able to slide again")]
+    [SerializeField] float slideCoolDown = 1.2f;
 
+
+    // Velocity Boosts:
+    [SerializeField] float defaultVelBoost_sliding = 2.2f;
+    [SerializeField] float increasedVelBoost_sliding = 2.6f;
+    [SerializeField] float slopeVelBoost_sliding = 2.2f;
+    [SerializeField] float lowSlopeVelBoost_sliding = 1.6f;
+
+    // Velocity Boost for another push. Note. These values should be lower than normal boost values!
+    [SerializeField] float defaultVelBoost_slideAgain = 1.2f;
+    [SerializeField] float increasedVelBoost_slideAgain = 1.7f;
+    [SerializeField] float slopeVelBoost_slideAgain = 1.2f;
+    [SerializeField] float lowSlopeVelBoost_slideAgain = 1.1f;
+
+    private Vector3 boostedVelocity;
     //For debug
     // public bool canSlide = true;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    public bool sliding = false;
+    public bool isSliding = false;
     public bool wasSliding = false;
+    public bool slideBlock = false;
 
     [Tooltip("How much control we have while sliding")]
     [SerializeField] float control_Sliding = 10; // How much control we have while sliding
 
     public bool canSlide = false;
     public bool firstTime = true; // At the beginning of the sliding, we will receive boost. (velocity boost) 
+    public bool anotherTime = false; // If we were sliding and lost contact, we will regain a right to get that boost to slide again on land.
 
     //SpeedLimits:
     [Tooltip("Speed above this value will result in no velocity boost")]
@@ -162,6 +203,8 @@ public class PlayerMovementv3 : MonoBehaviour
     [Range(0.0f, 5.0f)]
     [SerializeField] float increasedBoost = 2.6f; // If our velocity is low enought, we will get i´ncreased boost in velocity. 
 
+    public float timeForSlide = 0; // How long it should take to be able to slide after StopCrouching()
+    public bool blockSlidingAfterCrouching = false;
 
     ////////////////////////////////////////////////////////////////WallGrabbing////////////////////////////////////////////////////////////////////
     [Header("WallGrabbing")]
@@ -185,8 +228,6 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
 
-
-
     ////////////////////////////////////////////////////////////////Start////////////////////////////////////////////////////////////////////
     void Start()
     {
@@ -201,6 +242,12 @@ public class PlayerMovementv3 : MonoBehaviour
 
         cam_CurrentMaxFov = cam_DefaultMaxFOV;
         currentMaxSpeed = maxSpeedOnGround;
+
+        cam_currentCrouchingSpeed = cam_defaultCrouchingSpeed;
+        cam_currentSlideSpeed = cam_defaultSlidingSpeed;
+
+        cam_lowerLandSlidingSpeed = cam_landSlidingSpeed * 0.53846153846153846154f;
+        Debug.Log(cam_lowerLandSlidingSpeed);
     }
 
     ////////////////////////////////////////////////////////////////Update////////////////////////////////////////////////////////////////////
@@ -225,11 +272,11 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
 
-        if (sliding && !CheckSlidingForFOV())
+        if (isSliding && !CheckSlidingForFOV())
         {
 
-            cam_StepForSliding = cam_slidingSpeed * Time.deltaTime;
-            camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos + Vector3.down * cam_SlideHeight, cam_StepForSliding);
+            camStepSpeed = cam_currentSlideSpeed * Time.deltaTime;
+            camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos + Vector3.down * cam_SlideHeight, camStepSpeed);
             cam_CurrentMaxFov = cam_SlideFOV;
 
         }
@@ -241,15 +288,15 @@ public class PlayerMovementv3 : MonoBehaviour
 
             if (Crouching)
             {
-                cam_StepForCrouching = cam_crouchingSpeed * Time.deltaTime;
-                camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos + Vector3.down * cam_CrouchHeight, cam_StepForCrouching);
-                Debug.Log("Crouching");
+                camStepSpeed = cam_currentCrouchingSpeed * Time.deltaTime;
+                camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos + Vector3.down * cam_CrouchHeight, camStepSpeed);
+
 
             }
             else
             {
-                cam_StepForStanding = cam_standingSpeed * Time.deltaTime;
-                camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos, cam_StepForStanding);
+                camStepSpeed = cam_standingSpeed * Time.deltaTime;
+                camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos, camStepSpeed);
 
 
 
@@ -379,7 +426,7 @@ public class PlayerMovementv3 : MonoBehaviour
             }
         }
 
-        //AnimCtrl();
+
     }
     /*
     void AnimCtrl()
@@ -405,6 +452,7 @@ public class PlayerMovementv3 : MonoBehaviour
     ////////////////////////////////////////////////////////////////FixedUpdate////////////////////////////////////////////////////////////////////
     public bool cantMove = false;
 
+
     private void FixedUpdate()
     {
         DeltaForFixed = Time.deltaTime;
@@ -416,6 +464,29 @@ public class PlayerMovementv3 : MonoBehaviour
 
         //Calculate our current velocity magnitude:
         velocityMagnitude_InFixed = new Vector2(Rigid.velocity.x, Rigid.velocity.z).magnitude;
+
+        //Block sliding after crouching. This will prevent player from spamming sliding.
+        if (blockSlidingAfterCrouching)
+        {
+            if (timeForSlide < 0.5f)
+                timeForSlide += DeltaForFixed;
+
+            else
+            {
+                blockSlidingAfterCrouching = false;
+                slideBlock = false;
+                timeForSlide = 0;
+            }
+        }
+
+
+
+
+
+
+
+
+
 
 
         //*********************************************Grounded_Fixed***************************************************//
@@ -448,15 +519,15 @@ public class PlayerMovementv3 : MonoBehaviour
 
             //Check for crouching and sliding
             if (Input.GetButton("Crouch"))
-                ActionOnGround();      
+                ActionOnGround();
             else
             {
                 StopActionOnGround();
 
-                
 
 
-               
+
+
 
             }
 
@@ -504,6 +575,15 @@ public class PlayerMovementv3 : MonoBehaviour
 
             MoveInAir(horInputInFixed, verInputInFixed, DeltaForFixed);
 
+
+
+            yVelBeforeLanding = Rigid.velocity.y;
+
+
+
+
+            previousInAirTimer = InAirTimer;
+
         }
         //*********************************************OnWalls_Fixed*************************************************//
         else if (CurrentState == PlayerStates.OnWalls)
@@ -516,8 +596,10 @@ public class PlayerMovementv3 : MonoBehaviour
             //move our player when on a wall
             WallMove(verInputInFixed, DeltaForFixed);
 
-            //**************************************************************WALLJUMP*************************************************************/
+
             WallJump();
+
+
         }
 
     }
@@ -570,12 +652,17 @@ public class PlayerMovementv3 : MonoBehaviour
                 return;
             }
 
+            // Dont apply any boost if our Velocity X is zero. This will eliminate the bug where OnCollisionExit() is called when landing on the ground. (This only happens with Collision Detection set to Continuous Speculative for RigidBody.)
+            else if (Rigid.velocity.x > 6)
+            {
 
-            Vector3 velocityOnLanding = Rigid.velocity;
-            velocityOnLanding.y = 0;
-            Rigid.velocity = velocityOnLanding * 1.1f;
+                //  Debug.Log("Running");
+                Vector3 velocityOnLanding = Rigid.velocity;
+                velocityOnLanding.y = 0;
+                Rigid.velocity = velocityOnLanding * 1.1f;
 
-            return;
+                return;
+            }
         }
 
 
@@ -598,7 +685,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
             landOnSloupWithSliding = true;
-            VelocityYBeforeLanding = Rigid.velocity.y;
+
 
 
 
@@ -613,11 +700,11 @@ public class PlayerMovementv3 : MonoBehaviour
     ///Determines the proper action when pressing C. (SLIDE or CROUCH)
     void ActionOnGround()
     {
-      
+
         if (playerCollision.onTheFloor && !canSlide)
         {
-           
-            if (velocityMagnitude_InFixed > SlideSpeedLimit || landOnSloupWithSliding)
+
+            if (velocityMagnitude_InFixed > SlideSpeedLimit && !slideBlock || landOnSloupWithSliding)
                 StartSliding();
 
             else if (!Crouching)
@@ -628,6 +715,7 @@ public class PlayerMovementv3 : MonoBehaviour
         if (canSlide)
             Slide(horInputInFixed);
 
+        
     }
 
     ///////////////////////////////////////////////////////StopActionOnGround/////////////////////////////////////////////////////////
@@ -648,11 +736,11 @@ public class PlayerMovementv3 : MonoBehaviour
         if (canSlide)
             StopSliding();
 
-        if(!check)
-        StopCrouching();
+        if (!check && Crouching)
+            StopCrouching();
 
 
-        
+        cam_currentCrouchingSpeed = cam_defaultCrouchingSpeed;
 
     }
 
@@ -681,19 +769,35 @@ public class PlayerMovementv3 : MonoBehaviour
             ActWallRunTime = 0;
         }
 
-        StopCrouching(); //cannot crouch in air
+
+
+        if (Crouching)
+            StopCrouching(); //cannot crouch in air
 
         OnGroundTimer = 0; //remove the on ground timer
         CurrentState = PlayerStates.InAir;
 
         playerCollision.canCheck = true;
         currentMaxSpeed = maxSpeedOnGround;
+
+
+        //If the player slides and in the same time loses contact with the ground, he will get another boost on land while holding sliding. 
+        if (isSliding)
+        {
+            anotherTime = true;
+
+        }
+
+
+        wasActivated = false;
     }
 
 
     ///////////////////////////////////////////////////////SetOnGround/////////////////////////////////////////////////////////
     void SetOnGround()
     {
+
+
         //set our current speed to our velocity
         ReactOnLand(verInputInFixed, horInputInFixed);
 
@@ -705,7 +809,11 @@ public class PlayerMovementv3 : MonoBehaviour
         leftWallCheck = false;
         currentMaxSpeed = maxSpeedOnGround;
 
+        playerCollision.wasOnSlope = false;
+        stickToFloor.dontStickToFloor = false;
 
+
+       
     }
 
 
@@ -719,7 +827,7 @@ public class PlayerMovementv3 : MonoBehaviour
         cam_CurrentMaxFov = cam_WallFOV;
         ActSpeed = maxSpeedOnWalls;
 
-
+        playerCollision.wasOnSlope = false;
     }
 
 
@@ -747,12 +855,14 @@ public class PlayerMovementv3 : MonoBehaviour
         standCap.enabled = false;
         crouchCap.enabled = true;
 
+
     }
 
 
     ///////////////////////////////////////////////////////StopCrouching/////////////////////////////////////////////////////////
     void StopCrouching()
     {
+        timeForSlide = 0;
 
         Crouching = false;
 
@@ -768,12 +878,17 @@ public class PlayerMovementv3 : MonoBehaviour
 
         landOnSloupWithSliding = false;
 
-        cam_crouchingSpeed = 9f;
+        cam_currentCrouchingSpeed = 9f;
+
+        blockSlidingAfterCrouching = true;
+        slideBlock = true;
+
+
     }
 
     void StopSliding()
     {
-        sliding = false;
+        isSliding = false;
 
         crouchCap.enabled = false;
         standCap.enabled = true;
@@ -788,8 +903,10 @@ public class PlayerMovementv3 : MonoBehaviour
 
         landOnSloupWithSliding = false;
 
+        StartCoroutine(BlockSliding());
 
-        Debug.Log("StopSliding");
+        cam_currentSlideSpeed = cam_defaultSlidingSpeed;
+
     }
     ///////////////////////////////////////////////////////MovePlayer/////////////////////////////////////////////////////////
     Vector3 lerpVelocityOfMovement;
@@ -802,7 +919,7 @@ public class PlayerMovementv3 : MonoBehaviour
     void MovePlayer(float Hor, float Ver, float D)
     {
 
-        Debug.Log("MovePlayer");
+
         if ((Physics.SphereCast(faceOrientation.transform.position, 0.9f, faceOrientation.forward, out testray, 1f, normwalls) && CheckPlayerVertical(testray.point, Ver, Hor)) || Physics.SphereCast(faceOrientation.transform.position, 0.9f, -faceOrientation.forward, out testray, 1f, normwalls) && CheckPlayerVertical(testray.point, Ver, Hor))
         {
 
@@ -901,6 +1018,9 @@ public class PlayerMovementv3 : MonoBehaviour
             Rigid.AddForce(transform.up * JumpHeight, ForceMode.Impulse);
             //we are now in the air
             SetInAir();
+
+            stickToFloor.dontStickToFloor = true;
+
         }
     }
 
@@ -924,7 +1044,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
         if (velocityMagnitude_InUpdate < 5)
         {
-          // sliding = false;
+            // sliding = false;
             StopSliding();
             cam_CurrentMaxFov = cam_DefaultMaxFOV;
             return true;
@@ -945,16 +1065,30 @@ public class PlayerMovementv3 : MonoBehaviour
     {
         cantMove = true;
 
-        Debug.Log("StartSliding");
-
         //Shrink our capsule collider:
         standCap.enabled = false;
         crouchCap.enabled = true;
 
         canSlide = true;
 
-        sliding = true;
-        //StartCoroutine(SlideBlock());
+        isSliding = true;
+
+        if (yVelBeforeLanding < maxYVelocity && !wasActivated)
+        {
+            cam_currentSlideSpeed = cam_landSlidingSpeed;
+            Debug.Log("Landing Speed and yVel: " + yVelBeforeLanding);
+            wasActivated = true;
+        }
+        else if (previousInAirTimer > 1f && !wasActivated)
+        {
+            cam_currentSlideSpeed = cam_lowerLandSlidingSpeed;
+            Debug.Log("Landing Speed2");
+            wasActivated = true;
+
+        }
+
+
+        cam_currentCrouchingSpeed = cam_exitSlidingSpeed;
     }
 
 
@@ -971,7 +1105,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
     public bool landWithBoost = false;
     public bool landOnSloupWithSliding = false;
-    public float VelocityYBeforeLanding;
+
 
 
     Vector3 velocityForSliding;
@@ -995,23 +1129,21 @@ public class PlayerMovementv3 : MonoBehaviour
         //At the beginning of sliding, we will multiply our velocity and later just lerp it to the targetvelocity. 
         if (firstTime)
         {
-
+            Debug.Log("FirstTime");
             //Push the player at the start of sliding.
             PushPlayerIntoSliding();
 
-
-
-            // Set proper lerp value for specific situation:
-            if (playerCollision.onSlope)
-                currentActSpeed_sliding = actSpeedOnSlope_sliding;
-            else if (landWithBoost)
-                currentActSpeed_sliding = actSpeedOnLanding_sliding;
-            else
-                currentActSpeed_sliding = actSpeedOnFloor_sliding;
-
-
+            // Set proper lerp speed for sliding. Depends on situation.
+            SetSpeedForSliding();
 
             firstTime = false;
+        }
+
+        else if (anotherTime)
+        {
+            PushAgainIntoSliding();
+            SetSpeedForSliding();
+            anotherTime = false;
         }
 
 
@@ -1024,28 +1156,32 @@ public class PlayerMovementv3 : MonoBehaviour
         Rigid.velocity = velocityForSliding;
 
 
-        cam_crouchingSpeed = 2.5f;
 
+        Debug.Log("Sliding");
     }
 
 
-    ///////////////////////////////////////////////////////SetSliding/////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////PushPlayerIntoSliding/////////////////////////////////////////////////////////
     /// <summary>
     /// Starts actual sliding with boost of velocity.
     /// </summary>
     void PushPlayerIntoSliding()
     {
 
+        // Debug.Log("Push: " + yVelBeforeLanding);
 
-
-        //  Debug.Log("velocityMag_sliding: " + velocityMagnitude);
+        // Debug.Log("Mag: " + velocityMagnitude_InFixed);
 
 
 
         // If we move too fast, we wont get extra velocity for sliding.
         if (velocityMagnitude_InFixed > 20)
-            return;
+        {
+            if (landOnSloupWithSliding)
+                Rigid.velocity *= lowSlopeVelBoost_sliding;
 
+            return;
+        }
 
 
 
@@ -1053,42 +1189,107 @@ public class PlayerMovementv3 : MonoBehaviour
         //If we move too slow, we will get even more extra velocity. (It is for slow "land and slide" scenarios)
         if (velocityMagnitude_InFixed < 12 && landWithBoost)
         {
-            Rigid.velocity *= 2.6f;
-            Debug.Log("more boost");
+            boostedVelocity = Rigid.velocity;
+            boostedVelocity.y = 0;
+            Rigid.velocity = boostedVelocity * increasedVelBoost_sliding;
+
+            Debug.Log(Rigid.velocity.y);
 
             return;
         }
 
 
-        //Slidaa taakse vaikka slidii ekana eteenpäin.
-        //TSekkaa landonsloup!!!!!!!!!
-        //If we do not have any velocity at x and z except y when landing on slope, we will slide according to the slope.
+
+        //If we do not have any velocity at x and z except y when landing on slope, we will slide according to the slope. (See line: 661)
         if (landOnSloupWithSliding)
         {
-
-            float boost1 = Mathf.Abs(VelocityYBeforeLanding / 30);
-
-            Debug.Log(boost1);
-
-            Rigid.velocity = targetVelocity_sliding * boost1;
-
-
+            Rigid.velocity *= slopeVelBoost_sliding;
             return;
         }
 
 
 
-        
-        Rigid.velocity *= 2.2f;
+        boostedVelocity = Rigid.velocity;
+        boostedVelocity.y = 0;
+        Rigid.velocity = boostedVelocity * defaultVelBoost_sliding;
+
+
+
     }
 
 
-    ///////////////////////////////////////////////////////SlideBlock/////////////////////////////////////////////////////////
-    IEnumerator SlideBlock()
+    ///////////////////////////////////////////////////////PushAgainIntoSliding/////////////////////////////////////////////////////////
+    void PushAgainIntoSliding()
     {
-        //   canSlide = false;
-        yield return new WaitForSeconds(1.5f);
-        //canSlide = true;
+
+
+        // If we move too fast, we wont get extra velocity for sliding.
+        if (velocityMagnitude_InFixed > 27)
+        {
+
+            //In this situation previousInAirTimer is used to prevent the player from getting another boost while sliding down the slope.
+            if (landOnSloupWithSliding && previousInAirTimer > 1)
+            {
+                Rigid.velocity *= lowSlopeVelBoost_slideAgain;
+                Debug.Log("Give a little boost on slope");
+
+                return;
+            }
+
+            Debug.Log("Stop");
+            return;
+        }
+
+        if (previousInAirTimer < 0.5)
+            return;
+
+        Debug.Log("Pass");
+
+
+        if (landOnSloupWithSliding && previousInAirTimer > 1)
+        {
+            Debug.Log("LandOnsloupver2");
+            Rigid.velocity *= slopeVelBoost_slideAgain;
+            return;
+        }
+
+
+
+
+        // 2nd option:
+        if (previousInAirTimer > 1f)
+        {
+            boostedVelocity = Rigid.velocity;
+            boostedVelocity.y = 0;
+            Rigid.velocity = boostedVelocity * increasedVelBoost_slideAgain;
+            Debug.Log("Bigger: " + velocityMagnitude_InFixed);
+
+            //1.7
+            return;
+
+
+        }
+
+
+
+
+
+        Debug.Log("default: " + velocityMagnitude_InFixed);
+        boostedVelocity = Rigid.velocity;
+        boostedVelocity.y = 0;
+        Rigid.velocity = boostedVelocity * defaultVelBoost_slideAgain;
+
+    }
+
+
+    ///////////////////////////////////////////////////////BlockSliding/////////////////////////////////////////////////////////
+    IEnumerator BlockSliding()
+    {
+        slideBlock = true;
+        yield return new WaitForSeconds(slideCoolDown);
+
+        if (!blockSlidingAfterCrouching)
+            slideBlock = false;
 
 
     }
@@ -1262,7 +1463,21 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
 
+    /// <summary>
+    /// Sets proper value for a specific situatuation:
+    /// </summary>
+    void SetSpeedForSliding()
+    {
+
+        if (playerCollision.onSlope)
+            currentActSpeed_sliding = actSpeedOnSlope_sliding;
+        else if (landWithBoost)
+            currentActSpeed_sliding = actSpeedOnLanding_sliding;
+        else
+            currentActSpeed_sliding = actSpeedOnFloor_sliding;
 
 
+
+    }
 
 }
