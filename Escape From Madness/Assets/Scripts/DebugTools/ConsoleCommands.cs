@@ -32,6 +32,13 @@ public class ConsoleCommands : MonoBehaviour
 
 
     }
-   
 
+    [Command("SetFPSLimit", MonoTargetType.All)]
+    private void SetFPSLimit(int fpsLimit)
+    {
+        Application.targetFrameRate = fpsLimit;
+
+
+
+    }
 }

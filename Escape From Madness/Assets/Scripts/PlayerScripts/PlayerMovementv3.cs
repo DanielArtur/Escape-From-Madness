@@ -19,8 +19,8 @@ public class PlayerMovementv3 : MonoBehaviour
     float XMoveInUpdate;
     float YMoveInUpdate;
     // For FixedUpdate()
-    float horInputInFixed;
-    float verInputInFixed;
+    public float horInputInFixed;
+    public float verInputInFixed;
 
     ////////////////////////////////////////////////////////////////FixedTimer////////////////////////////////////////////////////////////////////
     float DeltaForUpdate;
@@ -30,11 +30,17 @@ public class PlayerMovementv3 : MonoBehaviour
     [Header("Scripts")]
     [SerializeField] private PlayerCollisionv2 playerCollision;
     [SerializeField] StickToFloor stickToFloor;
+    [SerializeField] internal CameraController cameraController;
+    
 
     [Header("Other References")]
-    [SerializeField] private Rigidbody Rigid;
-    [SerializeField] private Transform faceOrientation;
-    public Camera Cam; //what will function as our players head to tilt up and down (this is a pivot point_floor in our model that the cameras are children of
+    [SerializeField] public Rigidbody Rigid;
+    [SerializeField] public Transform faceOrientation;
+    [SerializeField] public Animator animator;
+    [SerializeField] public GameObject FPSHands;
+    [SerializeField] private GameObject orientationForLowerBody;
+    public Camera Cam;
+    
 
     [Tooltip("Walls that can be detected by rightWallCheck and leftWallCheck rays")]
     public LayerMask wallLayers; // Walls that can be detected by rightWallCheck and leftWallCheck rays
@@ -44,10 +50,15 @@ public class PlayerMovementv3 : MonoBehaviour
     [Header("Physics")]
     [Tooltip("Current player velocioty magnitude")]
     public float velocityMagnitude_InFixed;
+    public float velocityMagnitudeBeforeLand_InFixed;
+
     public float velocityMagnitude_InUpdate;
+
     private float currentMaxSpeed; //how fast we run forward
     public float maxSpeedOnGround = 18;
+    public float maxSpeedAlongWalls = 12;
     public float maxSpeedOnWalls = 24;
+
     public float BackwardsSpeed; //how fast we run backwards
     public float InAirControl; //how much control you have over your movement direction when in air
 
@@ -225,12 +236,15 @@ public class PlayerMovementv3 : MonoBehaviour
     [SerializeField] float cam_SlideFOV = 140;
 
 
-
-
-
+    // Test
+    // Local values for FPS Hands:
+    bool wasAnimated = false;
+    float InStandTimer; // How long we have been standing. This information is used to prevent player from spamming crouch.
+    public bool dontMoveCamera = false;
     ////////////////////////////////////////////////////////////////Start////////////////////////////////////////////////////////////////////
     void Start()
     {
+
         defaultCamPos = Cam.transform.localPosition;
         camTargetPos = defaultCamPos;
 
@@ -247,7 +261,7 @@ public class PlayerMovementv3 : MonoBehaviour
         cam_currentSlideSpeed = cam_defaultSlidingSpeed;
 
         cam_lowerLandSlidingSpeed = cam_landSlidingSpeed * 0.53846153846153846154f;
-        Debug.Log(cam_lowerLandSlidingSpeed);
+
     }
 
     ////////////////////////////////////////////////////////////////Update////////////////////////////////////////////////////////////////////
@@ -270,39 +284,11 @@ public class PlayerMovementv3 : MonoBehaviour
         CameraTilt();
 
 
+        MoveCamera();
 
 
-        if (isSliding && !CheckSlidingForFOV())
-        {
-
-            camStepSpeed = cam_currentSlideSpeed * Time.deltaTime;
-            camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos + Vector3.down * cam_SlideHeight, camStepSpeed);
-            cam_CurrentMaxFov = cam_SlideFOV;
-
-        }
-        else
-        {
-
-
-
-
-            if (Crouching)
-            {
-                camStepSpeed = cam_currentCrouchingSpeed * Time.deltaTime;
-                camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos + Vector3.down * cam_CrouchHeight, camStepSpeed);
-
-
-            }
-            else
-            {
-                camStepSpeed = cam_standingSpeed * Time.deltaTime;
-                camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos, camStepSpeed);
-
-
-
-            }
-        }
-
+        if (!isSliding)
+            orientationForLowerBody.transform.rotation = faceOrientation.transform.rotation;
 
 
 
@@ -322,6 +308,8 @@ public class PlayerMovementv3 : MonoBehaviour
         //*********************************************InAir***********************************************//
         else if (CurrentState == PlayerStates.InAir)
         {
+
+
             //check for ledge grabs
             if (Input.GetButton("Grab") && canGrab)
             {
@@ -480,7 +468,7 @@ public class PlayerMovementv3 : MonoBehaviour
         }
 
 
-
+        
 
 
 
@@ -507,6 +495,8 @@ public class PlayerMovementv3 : MonoBehaviour
             //If we are crouching, our target speed is our crouch speed
             if (Crouching)
                 targetSpd = CrouchSpeed;
+            else
+                InStandTimer += Time.deltaTime;
 
             //Dont call MovePlayer and LerpSpeed if we want to slide. (This will prevent random bugs)
             if (!cantMove)
@@ -576,11 +566,19 @@ public class PlayerMovementv3 : MonoBehaviour
             MoveInAir(horInputInFixed, verInputInFixed, DeltaForFixed);
 
 
-
+            //Collect data about our velocity before landing. This information is used for sliding etc.
             yVelBeforeLanding = Rigid.velocity.y;
+            velocityMagnitudeBeforeLand_InFixed = velocityMagnitude_InFixed;
 
-
-
+            if (InAirTimer > 0.6f && !wasAnimated)
+            {
+                wasAnimated = true;
+               
+                ArmAnimations.instance.PlayInAirAnimation();
+                LegAnimations.instance.PlayInAirAnimations(); 
+               
+               
+            }
 
             previousInAirTimer = InAirTimer;
 
@@ -611,8 +609,12 @@ public class PlayerMovementv3 : MonoBehaviour
     ////////////////////////////////////////////////////////////////LateUpdate////////////////////////////////////////////////////////////////////
     private void LateUpdate()
     {
-        // Update our target position for camera:
-        Cam.transform.localPosition = camTargetPos;
+        
+        if (!dontMoveCamera)
+        { // Update our target position for camera:
+             Cam.transform.localPosition = camTargetPos;
+            Debug.Log("run");
+        } 
     }
 
 
@@ -636,7 +638,13 @@ public class PlayerMovementv3 : MonoBehaviour
     //when in the air or on a wall, we set our action speed to the velocity magnitude, this is so that when we reach the ground again, our speed will carry over our momentum
     void ReactOnLand(float ver, float hor)
     {
-        // Debug.Log(Rigid.velocity.y);
+        // If our x and y velocities are too low, make flip on landing
+        if (previousInAirTimer > 1 && velocityMagnitudeBeforeLand_InFixed < 8 && !playerCollision.onSlope)
+        {
+            Debug.Log("MakeFlip");
+             MakeFlip.instance.StartFlip();
+            return;
+        }
 
 
         if (!Input.GetButton("Crouch"))
@@ -652,8 +660,10 @@ public class PlayerMovementv3 : MonoBehaviour
                 return;
             }
 
+
+
             // Dont apply any boost if our Velocity X is zero. This will eliminate the bug where OnCollisionExit() is called when landing on the ground. (This only happens with Collision Detection set to Continuous Speculative for RigidBody.)
-            else if (Rigid.velocity.x > 6)
+            if (Rigid.velocity.x > 6)
             {
 
                 //  Debug.Log("Running");
@@ -667,7 +677,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
         //Sliding right after landing:
-        else //if (Rigid.velocity.y < -5)
+        else if (velocityMagnitude_InFixed > 4)
         {
             StartSliding();
 
@@ -707,7 +717,7 @@ public class PlayerMovementv3 : MonoBehaviour
             if (velocityMagnitude_InFixed > SlideSpeedLimit && !slideBlock || landOnSloupWithSliding)
                 StartSliding();
 
-            else if (!Crouching)
+            else if (!Crouching && InStandTimer > 0.6f)
                 StartCrouching();
 
         }
@@ -715,7 +725,7 @@ public class PlayerMovementv3 : MonoBehaviour
         if (canSlide)
             Slide(horInputInFixed);
 
-        
+
     }
 
     ///////////////////////////////////////////////////////StopActionOnGround/////////////////////////////////////////////////////////
@@ -790,6 +800,10 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
         wasActivated = false;
+
+        // Activate falling animation:
+        //  cameraController.FallAnimation();
+       wasAnimated = false;
     }
 
 
@@ -812,8 +826,9 @@ public class PlayerMovementv3 : MonoBehaviour
         playerCollision.wasOnSlope = false;
         stickToFloor.dontStickToFloor = false;
 
-
        
+        ArmAnimations.instance.PlayOnGroundAnimations();
+        LegAnimations.instance.PlayOnGroundAimations(); ;
     }
 
 
@@ -828,6 +843,7 @@ public class PlayerMovementv3 : MonoBehaviour
         ActSpeed = maxSpeedOnWalls;
 
         playerCollision.wasOnSlope = false;
+
     }
 
 
@@ -854,8 +870,8 @@ public class PlayerMovementv3 : MonoBehaviour
 
         standCap.enabled = false;
         crouchCap.enabled = true;
-
-
+        LegAnimations.instance.PlayCrouchAnimation();
+        InStandTimer = 0;
     }
 
 
@@ -883,7 +899,7 @@ public class PlayerMovementv3 : MonoBehaviour
         blockSlidingAfterCrouching = true;
         slideBlock = true;
 
-
+        LegAnimations.instance.StopCrouchAnimation();
     }
 
     void StopSliding()
@@ -907,6 +923,8 @@ public class PlayerMovementv3 : MonoBehaviour
 
         cam_currentSlideSpeed = cam_defaultSlidingSpeed;
 
+        LegAnimations.instance.StopSlidingAnimation();
+        ArmAnimations.instance.StopSlidingAnimation();
     }
     ///////////////////////////////////////////////////////MovePlayer/////////////////////////////////////////////////////////
     Vector3 lerpVelocityOfMovement;
@@ -915,15 +933,20 @@ public class PlayerMovementv3 : MonoBehaviour
     public LayerMask normwalls;
     Vector3 directionAlongWall_OnGround;
     RaycastHit testray;
-
+    bool setAlongWall = true;
     void MovePlayer(float Hor, float Ver, float D)
     {
 
 
         if ((Physics.SphereCast(faceOrientation.transform.position, 0.9f, faceOrientation.forward, out testray, 1f, normwalls) && CheckPlayerVertical(testray.point, Ver, Hor)) || Physics.SphereCast(faceOrientation.transform.position, 0.9f, -faceOrientation.forward, out testray, 1f, normwalls) && CheckPlayerVertical(testray.point, Ver, Hor))
         {
-
-            //T‰ss‰ tapauksessa oikea suunta sein‰‰ pitkin: 
+            if (setAlongWall)
+            {
+                setAlongWall = false;
+                currentMaxSpeed = maxSpeedAlongWalls;
+                Debug.Log(currentMaxSpeed);
+            }
+            //In this case, calculate the right path along the wall
             directionAlongWall_OnGround = Vector3.ProjectOnPlane((faceOrientation.forward * Ver) + (faceOrientation.right * Hor), testray.normal);
 
             movementDirection = directionAlongWall_OnGround.normalized;
@@ -931,6 +954,14 @@ public class PlayerMovementv3 : MonoBehaviour
         }
         else
         {
+            if (!setAlongWall)
+            {
+                currentMaxSpeed = maxSpeedOnGround;
+                setAlongWall = true;
+                Debug.Log(currentMaxSpeed);
+
+            }
+
             //find the direction to move in, based on the direction inputs
             movementDirection = (faceOrientation.forward * Ver) + (faceOrientation.right * Hor);
             movementDirection = movementDirection.normalized;
@@ -1019,24 +1050,67 @@ public class PlayerMovementv3 : MonoBehaviour
             //we are now in the air
             SetInAir();
 
-            stickToFloor.dontStickToFloor = true;
+            if (isSliding)
+                StopSliding();
 
+            stickToFloor.dontStickToFloor = true;
+            LegAnimations.instance.PlayInAirAnimations();
+            ArmAnimations.instance.PlayJumpingAnimation();
+            wasAnimated = true;
         }
     }
 
 
     ///////////////////////////////////////////////////////HandleFOV/////////////////////////////////////////////////////////
     //increase our fov at high speed and reduce it at low speed
+
+    float FieldView;
+    bool wasBlocked = false;
+    bool freezeFOV = false;
     void HandleFov(float D)
     {
         //get appropritate fov 
         float LerpAmt = velocityMagnitude_InUpdate / FOVSpeed;
-        float FieldView = Mathf.Lerp(cam_defaultFOV, cam_CurrentMaxFov, LerpAmt);
+
+
+        FieldView = Mathf.Lerp(cam_defaultFOV, cam_CurrentMaxFov, LerpAmt);
+
+
+        FixFOV();
+
+
+
+
         //ease into this fov
         Cam.fieldOfView = Mathf.Lerp(Cam.fieldOfView, FieldView, 4 * D);
         //Debug.Log(mag);
     }
 
+    void FixFOV()
+    {
+        if (CurrentState == PlayerStates.InAir || CurrentState == PlayerStates.OnWalls)
+            return;
+
+
+        if (horInputInFixed != 0 && verInputInFixed == 0 || verInputInFixed < 0)
+        {
+            FieldView = cam_defaultFOV;
+            wasBlocked = true;
+        }
+
+        if (wasBlocked)
+            if (horInputInFixed == 0 || verInputInFixed != 0)
+            {
+                wasBlocked = false;
+                StartCoroutine(StopFOVManagement());
+            }
+
+        if (freezeFOV && verInputInFixed == 0)
+            FieldView = cam_defaultFOV;
+
+
+
+    }
 
     ///////////////////////////////////////////////////////CheckSliding/////////////////////////////////////////////////////////
     private bool CheckSlidingForFOV()
@@ -1089,6 +1163,11 @@ public class PlayerMovementv3 : MonoBehaviour
 
 
         cam_currentCrouchingSpeed = cam_exitSlidingSpeed;
+
+
+
+        LegAnimations.instance.PlaySlidingAnimation();
+        ArmAnimations.instance.PlaySlidingAnimation();
     }
 
 
@@ -1203,6 +1282,7 @@ public class PlayerMovementv3 : MonoBehaviour
         //If we do not have any velocity at x and z except y when landing on slope, we will slide according to the slope. (See line: 661)
         if (landOnSloupWithSliding)
         {
+            Debug.Log("slope");
             Rigid.velocity *= slopeVelBoost_sliding;
             return;
         }
@@ -1228,7 +1308,7 @@ public class PlayerMovementv3 : MonoBehaviour
         {
 
             //In this situation previousInAirTimer is used to prevent the player from getting another boost while sliding down the slope.
-            if (landOnSloupWithSliding && previousInAirTimer > 1)
+            if (landOnSloupWithSliding && previousInAirTimer > 2)
             {
                 Rigid.velocity *= lowSlopeVelBoost_slideAgain;
                 Debug.Log("Give a little boost on slope");
@@ -1475,6 +1555,63 @@ public class PlayerMovementv3 : MonoBehaviour
             currentActSpeed_sliding = actSpeedOnLanding_sliding;
         else
             currentActSpeed_sliding = actSpeedOnFloor_sliding;
+
+
+
+    }
+
+
+
+    IEnumerator StopFOVManagement()
+    {
+        freezeFOV = true;
+        yield return new WaitForSeconds(0.5f);
+        freezeFOV = false;
+
+
+
+    }
+
+
+
+
+    void MoveCamera()
+    {
+        
+
+        if (isSliding && !CheckSlidingForFOV())
+        {
+
+            camStepSpeed = cam_currentSlideSpeed * Time.deltaTime;
+            camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos + Vector3.down * cam_SlideHeight, camStepSpeed);
+            cam_CurrentMaxFov = cam_SlideFOV;
+
+        }
+
+
+
+        else
+        {
+
+
+
+
+            if (Crouching)
+            {
+                camStepSpeed = cam_currentCrouchingSpeed * Time.deltaTime;
+                camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos + Vector3.down * cam_CrouchHeight, camStepSpeed);
+
+
+            }
+            else
+            {
+                camStepSpeed = cam_standingSpeed * Time.deltaTime;
+                camTargetPos = Vector3.MoveTowards(Cam.transform.localPosition, defaultCamPos, camStepSpeed);
+
+
+
+            }
+        }
 
 
 
