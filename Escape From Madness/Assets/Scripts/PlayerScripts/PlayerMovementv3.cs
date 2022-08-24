@@ -613,7 +613,7 @@ public class PlayerMovementv3 : MonoBehaviour
         if (!dontMoveCamera)
         { // Update our target position for camera:
              Cam.transform.localPosition = camTargetPos;
-            Debug.Log("run");
+           
         } 
     }
 
