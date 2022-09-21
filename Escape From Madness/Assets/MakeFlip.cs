@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class MakeFlip : MonoBehaviour
@@ -7,37 +5,66 @@ public class MakeFlip : MonoBehaviour
 
     public static MakeFlip instance;
 
-
     [Header("References")]
     [SerializeField] PlayerMovementv3 playerMovement;
     [SerializeField] private Transform cameraTransform;
-    [SerializeField] Transform OrientationForLowerBody;
-    [SerializeField] GameObject lowerBody;
-    [SerializeField] Transform point;
-    [SerializeField] Transform pointForLowerBody;
 
-    [Header("Settings")]
-    [SerializeField] float rotationDuration = 1;
-    [SerializeField] float rotationDuration2 = 0.9f;
+    [SerializeField] GameObject mainBody_mesh;
+    [SerializeField] GameObject hands_mesh;
+    [SerializeField] GameObject secondBody;
+
+    [SerializeField] Transform headPoint;
+    
+    bool rolling = false;
+    Vector3 camPrevPos;
 
 
-
+   
     private void Awake()
     {
         if(instance == null)
             instance = this;
         else
             Destroy(gameObject);
+
+        //Mark cameras original point:
+        camPrevPos = cameraTransform.localPosition;
+
+     
+
     }
+
+    public void Update()
+    {
+        if(rolling)
+        {
+            cameraTransform.rotation = headPoint.rotation;
+            cameraTransform.position = headPoint.position;
+
+        }
+
+        else if(!rolling && Vector3.Distance(cameraTransform.localPosition, camPrevPos) > 0.001f)
+        {
+
+            cameraTransform.localPosition = Vector3.MoveTowards(cameraTransform.localPosition, camPrevPos, 1f * Time.deltaTime);
+
+        }
+
+    }
+
+
 
     public void StartFlip()
     {
         playerMovement.dontMoveCamera = true;
-        transform.rotation = cameraTransform.rotation;
         playerMovement.cameraController.canMove = false;
 
-       // StartCoroutine(RotateLowerBody(rotationDuration2));
-        //StartCoroutine(Rotate(rotationDuration));
+        rolling = true;
+
+        mainBody_mesh.SetActive(false);
+        hands_mesh.SetActive(false);
+
+        secondBody.SetActive(true);
 
         //  playerMovement.Rigid.AddForce(playerMovement.faceOrientation.forward * 4, ForceMode.Impulse);
 
@@ -47,75 +74,24 @@ public class MakeFlip : MonoBehaviour
 
 
 
-    void StopFlip()
+    public void StopFlip()
     {
+        rolling = false;
+
         playerMovement.dontMoveCamera = true;
         playerMovement.cameraController.canMove = true;
 
-        OrientationForLowerBody.localPosition = new Vector3(0, 0, 0);
-        lowerBody.transform.localPosition = new Vector3(0, 0.06000137f, -2.4f);
+        secondBody.SetActive(false);
+
+        mainBody_mesh.SetActive(true);
+        hands_mesh.SetActive(true);
+
         Debug.Log("Stop");
 
-    }
-
-    IEnumerator Rotate(float duration)
-    {
-
-        float t = 0.0f;
-        
-
-        while (t < duration)
-        {
-            t += Time.deltaTime;
-
-            
-            cameraTransform.RotateAround(point.transform.position, cameraTransform.right, 360 / (duration * (1 / Time.deltaTime)));
-
-           
-
-            yield return null;
-
-        }
-        
-        StopFlip();
+       
 
     }
 
-
-    IEnumerator RotateLowerBody(float duration)
-    {
-
-        float t = 0.0f;
-        float triggerValue = (duration / 100) * 100;
-        float triggerValue2 = (duration / 100) * 10;
-        bool wasActivated = false;
-
-        while (t < duration)
-        {
-            t += Time.deltaTime;
-
-
-            OrientationForLowerBody.transform.RotateAround(point.transform.position, OrientationForLowerBody.transform.right, 360 / (duration * (1 / Time.deltaTime)));
-
-            if (t >= triggerValue2 && !wasActivated)
-            {
-                wasActivated = true;
-                lowerBody.SetActive(false);
-
-                Debug.Log("First trigger value breached");
-            }
-            if (t >= triggerValue)
-            {
-                lowerBody.SetActive(true);
-                Debug.Log("Second trigger value breached");
-            }
-
-            yield return null;
-
-        }
-
-        
-
-    }
+   
 
 }

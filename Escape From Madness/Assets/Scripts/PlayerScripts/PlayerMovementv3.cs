@@ -639,10 +639,10 @@ public class PlayerMovementv3 : MonoBehaviour
     void ReactOnLand(float ver, float hor)
     {
         // If our x and y velocities are too low, make flip on landing
-        if (previousInAirTimer > 1 && velocityMagnitudeBeforeLand_InFixed < 8 && !playerCollision.onSlope)
+        if (previousInAirTimer > 1.6f && velocityMagnitudeBeforeLand_InFixed < 11 && !playerCollision.onSlope)
         {
             Debug.Log("MakeFlip");
-             MakeFlip.instance.StartFlip();
+            MakeFlip.instance.StartFlip();
             return;
         }
 

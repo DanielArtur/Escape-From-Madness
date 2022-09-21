@@ -340,6 +340,7 @@
 "Assets/Scripts/PlayerScripts/PlayerMovementv3.cs"
 "Assets/Scripts/PlayerScripts/StickToFloor.cs"
 "Assets/Scripts/PlayerScripts/wallSlideCollCheck.cs"
+"Assets/SecondBodyController.cs"
 "Assets/TextMesh Pro/Examples & Extras/Scripts/Benchmark01.cs"
 "Assets/TextMesh Pro/Examples & Extras/Scripts/Benchmark01_UGUI.cs"
 "Assets/TextMesh Pro/Examples & Extras/Scripts/Benchmark02.cs"
