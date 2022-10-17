@@ -15,11 +15,21 @@ public class MakeFlip : MonoBehaviour
 
     [SerializeField] Transform headPoint;
     
+    
+    [Space(20), Header("Settings")]
+    [SerializeField] float  distanceForFlip = 10; 
+
+
+
+    // Technical variables:
     bool rolling = false;
+
     Vector3 camPrevPos;
+    Transform Player;
+    Transform OrientationForBody;
 
+    [SerializeField] Transform OrientationForBody2;
 
-   
     private void Awake()
     {
         if(instance == null)
@@ -30,8 +40,8 @@ public class MakeFlip : MonoBehaviour
         //Mark cameras original point:
         camPrevPos = cameraTransform.localPosition;
 
-     
-
+        Player = gameObject.transform.parent.gameObject.transform;
+        OrientationForBody = mainBody_mesh.transform.parent.transform;
     }
 
     public void Update()
@@ -41,12 +51,14 @@ public class MakeFlip : MonoBehaviour
             cameraTransform.rotation = headPoint.rotation;
             cameraTransform.position = headPoint.position;
 
+            Player.transform.position = Vector3.MoveTowards(Player.transform.position, mainBody_mesh.transform.forward, distanceForFlip * Time.deltaTime);
+            Debug.Log(OrientationForBody.rotation.y);
         }
 
         else if(!rolling && Vector3.Distance(cameraTransform.localPosition, camPrevPos) > 0.001f)
         {
 
-            cameraTransform.localPosition = Vector3.MoveTowards(cameraTransform.localPosition, camPrevPos, 1f * Time.deltaTime);
+            cameraTransform.localPosition = Vector3.MoveTowards(cameraTransform.localPosition, camPrevPos, 2f * Time.deltaTime);
 
         }
 
@@ -66,7 +78,8 @@ public class MakeFlip : MonoBehaviour
 
         secondBody.SetActive(true);
 
-        //  playerMovement.Rigid.AddForce(playerMovement.faceOrientation.forward * 4, ForceMode.Impulse);
+       
+
 
 
     }

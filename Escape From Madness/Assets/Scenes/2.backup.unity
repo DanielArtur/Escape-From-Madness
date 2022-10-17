@@ -3865,6 +3865,8 @@ MonoBehaviour:
   hands_mesh: {fileID: 919132148223672076}
   secondBody: {fileID: 2511140547154584795}
   headPoint: {fileID: 9067828977153340062}
+  distanceForFlip: 6
+  OrientationForBody2: {fileID: 647769012}
 --- !u!1 &985768780
 GameObject:
   m_ObjectHideFlags: 0

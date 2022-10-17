@@ -20,7 +20,7 @@ m_EmbeddedPackageManifests:
 m_LocalPackages:
   m_LocalFileStatus: []
 m_ProjectPath: D:/Projects/Escape From Madness/Escape From Madness/Packages
-m_EditorVersion: 2021.3.6f1 (7da38d85baf6)
+m_EditorVersion: 2021.3.10f1 (1c7d0df0160b)
 m_ResolvedPackages:
 - packageId: com.unity.connect.share@4.2.3
   testable: 0
@@ -36,7 +36,7 @@ m_ResolvedPackages:
     email: 
     url: 
   category: 
-  type: 
+  type: tool
   description: This tool allows you to make a WebGL build of your current project
     and upload it to Unity's website, where it can be shared with others.
   status: 4
