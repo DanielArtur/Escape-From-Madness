@@ -31,7 +31,7 @@ public class PlayerMovementv3 : MonoBehaviour
     [SerializeField] private PlayerCollisionv2 playerCollision;
     [SerializeField] StickToFloor stickToFloor;
     [SerializeField] internal CameraController cameraController;
-    
+
 
     [Header("Other References")]
     [SerializeField] public Rigidbody Rigid;
@@ -40,7 +40,7 @@ public class PlayerMovementv3 : MonoBehaviour
     [SerializeField] public GameObject FPSHands;
     [SerializeField] private GameObject orientationForLowerBody;
     public Camera Cam;
-    
+
 
     [Tooltip("Walls that can be detected by rightWallCheck and leftWallCheck rays")]
     public LayerMask wallLayers; // Walls that can be detected by rightWallCheck and leftWallCheck rays
@@ -468,7 +468,7 @@ public class PlayerMovementv3 : MonoBehaviour
         }
 
 
-        
+
 
 
 
@@ -573,11 +573,11 @@ public class PlayerMovementv3 : MonoBehaviour
             if (InAirTimer > 0.6f && !wasAnimated)
             {
                 wasAnimated = true;
-               
+
                 ArmAnimations.instance.PlayInAirAnimation();
-                LegAnimations.instance.PlayInAirAnimations(); 
-               
-               
+                LegAnimations.instance.PlayInAirAnimations();
+
+
             }
 
             previousInAirTimer = InAirTimer;
@@ -609,12 +609,12 @@ public class PlayerMovementv3 : MonoBehaviour
     ////////////////////////////////////////////////////////////////LateUpdate////////////////////////////////////////////////////////////////////
     private void LateUpdate()
     {
-        
+
         if (!dontMoveCamera)
         { // Update our target position for camera:
-             Cam.transform.localPosition = camTargetPos;
-           
-        } 
+            Cam.transform.localPosition = camTargetPos;
+
+        }
     }
 
 
@@ -642,7 +642,7 @@ public class PlayerMovementv3 : MonoBehaviour
         if (previousInAirTimer > 1.6f && velocityMagnitudeBeforeLand_InFixed < 11 && !playerCollision.onSlope)
         {
             Debug.Log("MakeFlip");
-            MakeFlip.instance.StartFlip();
+            MakeFlip.Instance.StartFlip();
             return;
         }
 
@@ -803,7 +803,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
         // Activate falling animation:
         //  cameraController.FallAnimation();
-       wasAnimated = false;
+        wasAnimated = false;
     }
 
 
@@ -826,9 +826,9 @@ public class PlayerMovementv3 : MonoBehaviour
         playerCollision.wasOnSlope = false;
         stickToFloor.dontStickToFloor = false;
 
-       
+
         ArmAnimations.instance.PlayOnGroundAnimations();
-        LegAnimations.instance.PlayOnGroundAimations(); ;
+        LegAnimations.instance.PlayOnGroundAimations();
     }
 
 
@@ -1577,7 +1577,7 @@ public class PlayerMovementv3 : MonoBehaviour
 
     void MoveCamera()
     {
-        
+
 
         if (isSliding && !CheckSlidingForFOV())
         {

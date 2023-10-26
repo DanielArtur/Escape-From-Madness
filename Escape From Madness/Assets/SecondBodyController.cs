@@ -5,8 +5,11 @@ public class SecondBodyController : MonoBehaviour
     public void StopRollingAnimation()
     {
 
-        MakeFlip.instance.StopFlip();
+        MakeFlip.Instance.StopFlip();
 
 
     }
+
+    
+
 }

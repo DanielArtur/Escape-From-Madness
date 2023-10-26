@@ -10,6 +10,9 @@ public class PlayerCollisionv2 : MonoBehaviour
     [SerializeField] PlayerMovementv3 playerMovement;
     [SerializeField] StickToFloor stickToFloor;
 
+    [Tooltip("Y rotation of camera"), Space(10)]
+    [SerializeField] private Transform faceOrientation; // Y rotation of camera
+
     [Header("RayCast Settings")]
     [Tooltip("Yellow")]
     public float FloorCheckRadius; //how large the detection for the floors is
@@ -40,9 +43,6 @@ public class PlayerCollisionv2 : MonoBehaviour
     public LayerMask WallLayers;  //what layers we can wall run on
     public LayerMask RoofLayers; //what layers we cannot stand up under (for crouching
     public LayerMask LedgeGrabLayers; //what layers we will grab onto
-
-    [Tooltip("Y rotation of camera")]
-    [SerializeField] private Transform faceOrientation; // Y rotation of camera
 
     [Header("SlopeCheck")]
     [SerializeField] float slopeLimit;
